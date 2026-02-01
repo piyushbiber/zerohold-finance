@@ -6,133 +6,104 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-use ZeroHold\Finance\Core\LedgerService;
-use Throwable;
-
+/**
+ * ChargeEngine
+ * 
+ * Responsible for calculating and applying platform fees/commissions
+ * based on active rules when financial events occur (e.g. Order Completion).
+ */
 class ChargeEngine {
 
     /**
-     * Listen to Canonical Events and specific Rules
+     * Initialize the Charge Engine
      */
     public static function init() {
-        // Core Event Listener for Rule Processing
-        // We listen to our own ingress events, so we can chain logic.
-        add_action( 'zh_finance_event', [ __CLASS__, 'process_rules_for_event' ], 10, 3 );
+        // Listen for the generic finance event trigger
+        add_action( 'zh_finance_event', [ __CLASS__, 'handle_event' ], 10, 2 );
     }
 
     /**
-     * Process automated charge rules for a given event.
+     * Handle generic finance events
      * 
-     * @param string $event_name The canonical event name (e.g., zh_event_order_created)
-     * @param array $payload The validated payload from Ingress
-     * @param string $event_id The unique UUID of the ingress event
+     * @param string $event_name (e.g., 'order_completed', 'shipping_purchased')
+     * @param array  $payload    (e.g., ['order_id' => 123, 'vendor_id' => 5])
      */
-    public static function process_rules_for_event( $event_name, $payload, $event_id ) {
-        // 1. Fetch Active Rules for this Trigger
-        $rules = self::get_rules_by_trigger( $event_name );
-
-        if ( empty( $rules ) ) {
+    public static function handle_event( $event_name, $payload ) {
+        if ( empty( $payload['vendor_id'] ) ) {
             return;
         }
 
+        // 1. Get applicable rules for this event
+        $rules = self::get_rules_for_trigger( $event_name );
+
         foreach ( $rules as $rule ) {
-            try {
-                // 2. Validate Conditions
-                if ( ! self::conditions_match( $rule, $payload ) ) {
-                    continue;
-                }
-
-                // 3. Calculate Amount
-                $amount = self::calculate_amount( $rule, $payload );
-
-                if ( $amount <= 0 ) {
-                    continue; // No charge if amount is zero
-                }
-
-                // 4. Apply to Ledger (Debit Vendor, Credit Platform/Bank)
-                $impact      = $rule->impact_slug; // e.g., 'platform_commission'
-                $description = $rule->description_template ?: 'Automated Charge: ' . $rule->name;
-
-                // Replace vars in description
-                $description = str_replace( '{order_id}', $payload['reference_id'] ?? '', $description );
-
-                // Record Debit (Expense for Vendor)
-                LedgerService::record_entry(
-                    'vendor',
-                    $payload['vendor_id'], // Assuming payload has vendor_id, standard for our events
-                    $amount * -1, // Debit is negative
-                    $impact,
-                    $payload['reference_type'] ?? 'system',
-                    $payload['reference_id'] ?? $event_id,
-                    $description
-                );
-
-                // Record Credit (Income for Platform/Bank) - Double Entry
-                // Usually credited to 'admin' or a specific internal account
-                LedgerService::record_entry(
-                    'admin',
-                    1, // Main Admin ID or Platform ID
-                    $amount,
-                    $impact, // Same impact tag, or maybe 'commission_revenue'
-                    $payload['reference_type'] ?? 'system',
-                    $payload['reference_id'] ?? $event_id,
-                    "Revenue from Vendor: " . $description
-                );
-
-            } catch ( Throwable $e ) {
-                error_log( "ZH ChargeEngine Error [Rule {$rule->id}]: " . $e->getMessage() );
-            }
+            self::process_rule( $rule, $payload );
         }
     }
 
     /**
-     * Fetch rules from DB.
-     * Placeholder: In Phase 5b we will add the UI to save these to DB.
-     * For now, I will hardcode the 'Platform Commission' rule here to prove it works.
+     * Get active rules for a specific Trigger
+     * (Currently HARDCODED for Phase 0 MVP)
      */
-    private static function get_rules_by_trigger( $trigger ) {
-        // TODO: Replace with DB query: SELECT * FROM wp_zh_charge_rules WHERE trigger_event = %s AND is_active = 1
-        
-        $mock_rules = [];
+    private static function get_rules_for_trigger( $trigger ) {
+        $rules = [];
 
-        // Example Rule: 10% Platform Commission on Order Payment
-        if ( $trigger === 'zh_event_order_paid' ) { // Listening to order paid, not just created
-            $mock_rules[] = (object) [
-                'id' => 999,
-                'name' => 'Global Platform Commission',
-                'trigger_event' => 'zh_event_order_paid',
-                'impact_slug' => 'platform_commission',
-                'calculation_type' => 'percentage', // percentage or fixed
-                'calculation_value' => 10, // 10%
-                'basis_field' => 'amount', // Payload field to calc against
-                'description_template' => 'Platform Commission (10%) for Order #{order_id}'
+        // HARDCODED RULE: 10% Platform Commission on Order Complete
+        if ( $trigger === 'order_completed' ) {
+            $rules[] = [
+                'id'          => 'rule_platform_comm_10',
+                'title'       => 'Platform Commission',
+                'type'        => 'percentage',
+                'value'       => 10.00, // 10%
+                'recipient'   => 'admin', // Goes to platform
+                'description' => 'Standard platform fee',
             ];
         }
 
-        return $mock_rules;
+        return $rules;
     }
 
     /**
-     * Check if rule conditions (like category, vendor specific) match.
+     * Process a single rule and creating Ledger Entries
      */
-    private static function conditions_match( $rule, $payload ) {
-        // Placeholder for advanced conditions logic
-        return true; 
-    }
-
-    /**
-     * Calculate charge amount.
-     */
-    private static function calculate_amount( $rule, $payload ) {
-        if ( $rule->calculation_type === 'fixed' ) {
-            return (float) $rule->calculation_value;
+    private static function process_rule( $rule, $payload ) {
+        // We need an Order object to calculate amounts
+        if ( empty( $payload['order_id'] ) ) {
+            return;
         }
 
-        if ( $rule->calculation_type === 'percentage' ) {
-            $basis = isset( $payload[ $rule->basis_field ] ) ? (float) $payload[ $rule->basis_field ] : 0;
-            return round( $basis * ( $rule->calculation_value / 100 ), 2 );
+        $order = wc_get_order( $payload['order_id'] );
+        if ( ! $order ) {
+            return;
         }
 
-        return 0;
+        // 1. Calculate Amount
+        // TODO: This should be Net Sales (Product Total), likely excluding tax/shipping for commission
+        // For MVP, lets use order total or subtotal of the vendor's items.
+        // But $order might be a sub-order (Dokan) or parent.
+        // In Dokan, vendors have sub-orders. We assume $order is the sub-order.
+        
+        $basis_amount = $order->get_subtotal(); // Commission usually on product price
+        $charge_amount = 0;
+
+        if ( $rule['type'] === 'percentage' ) {
+            $charge_amount = ( $basis_amount * $rule['value'] ) / 100;
+        }
+
+        // 2. Debit the Vendor (They OWE this money)
+        if ( $charge_amount > 0 ) {
+            Ledger::record_entry(
+                $payload['vendor_id'],
+                $charge_amount,
+                'debit', // Subtract from their wallet
+                'fee',   // Category
+                'order',
+                $payload['order_id'],
+                $rule['title'] // Description
+            );
+
+            // 3. Credit the Admin (Optional: if we tracked Admin Wallet, we'd do it here)
+            // error_log( "Charged Vendor #{$payload['vendor_id']} $charge_amount for {$rule['title']}" );
+        }
     }
 }
