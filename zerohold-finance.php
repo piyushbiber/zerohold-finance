@@ -62,9 +62,12 @@ class ZeroHold_Finance {
 
     public function on_plugins_loaded() {
         // Initialize Core Services
-        // ZeroHold\Finance\Core\QueryEngine::init(); // Not needed (static helper)
-        ZeroHold\Finance\Core\QueryEngine::init();
+        // QueryEngine is a static helper, no init needed.
+        
+        require_once ZH_FINANCE_PATH . 'Core/ChargeEngine.php';
         ZeroHold\Finance\Core\ChargeEngine::init();
+        
+        require_once ZH_FINANCE_PATH . 'Core/FinanceObserver.php';
         ZeroHold\Finance\Core\FinanceObserver::init();
         
         // Initialize Integrations
