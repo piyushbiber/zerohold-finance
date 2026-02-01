@@ -1,0 +1,160 @@
+/* ZeroHold Finance Dashboard - Premium Fintech Theme */
+.zh-finance-dashboard {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: #2d3748;
+}
+
+/* Header Area */
+.zh-header-area {
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 1rem;
+}
+.zh-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a202c;
+    margin: 0;
+}
+
+/* Navigation Tabs */
+.zh-nav ul {
+    display: flex;
+    gap: 1.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.zh-nav a {
+    text-decoration: none;
+    color: #718096;
+    font-weight: 500;
+    padding: 0.5rem 0;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+.zh-nav li.active a {
+    color: #3182ce;
+    border-bottom-color: #3182ce;
+}
+
+/* Stats Grid Cards */
+.zh-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+.zh-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    border: 1px solid #edf2f7;
+    transition: transform 0.2s;
+}
+.zh-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+.zh-card-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a0aec0;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.zh-card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+.zh-card-sub {
+    font-size: 0.85rem;
+    color: #718096;
+    margin-top: 0.5rem;
+}
+
+/* Buttons */
+.zh-btn-withdraw {
+    display: inline-block;
+    background: #3182ce;
+    color: #fff;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    margin-top: 1rem;
+    transition: background 0.2s;
+}
+.zh-btn-withdraw:hover {
+    background: #2b6cb0;
+    color: #fff;
+}
+
+/* Table Styles - Clean & Modern */
+.zh-table-container {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #edf2f7;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+.zh-table-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #edf2f7;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.zh-table-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+table.zh-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+table.zh-table th {
+    background: #f7fafc;
+    text-align: left;
+    padding: 1rem 1.5rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #718096;
+    font-weight: 600;
+}
+table.zh-table td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #edf2f7;
+    color: #4a5568;
+    font-size: 0.95rem;
+}
+table.zh-table tr:last-child td {
+    border-bottom: none;
+}
+table.zh-table tr:hover td {
+    background: #fcfcfc;
+}
+
+/* Status Badges */
+.zh-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.zh-badge-green { background: #c6f6d5; color: #22543d; }
+.zh-badge-red { background: #fed7d7; color: #822727; }
+.zh-badge-gray { background: #e2e8f0; color: #4a5568; }
+.zh-badge-orange { background: #feebc8; color: #7b341e; }

@@ -20,6 +20,9 @@ class DashboardIntegration {
         
         // 4. Register URL Endpoint (Rewrites)
         add_filter( 'dokan_query_var_filter', [ __CLASS__, 'add_finance_endpoint' ] );
+
+        // 5. Enqueue Assets (CSS/JS)
+        add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_assets' ] );
     }
 
     public static function register_query_var( $query_vars ) {
@@ -58,7 +61,13 @@ class DashboardIntegration {
     
     public static function enqueue_assets() {
         if ( dokan_is_seller_dashboard() && get_query_var( 'zh-finance' ) ) {
-            // Check if we need to enqueue any specific JS/CSS
+            // Enqueue CSS for Fintech UI
+            wp_enqueue_style( 
+                'zerohold-finance-css', 
+                ZH_FINANCE_URL . 'assets/css/finance-dashboard.css', 
+                [], 
+                ZH_FINANCE_VERSION 
+            );
         }
     }
 }
