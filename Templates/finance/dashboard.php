@@ -1,13 +1,14 @@
 <?php
 /**
  * ZeroHold Finance Dashboard Template
+ * Location: Templates/finance/dashboard.php
  * 
  * @var $current_user
  */
 
 use ZeroHold\Finance\Core\QueryEngine;
 
-// Add Theme Header
+// Add Theme Header (Required since we use exit in the loader)
 get_header();
 
 $vendor_id = dokan_get_current_user_id();
@@ -45,11 +46,15 @@ if ( $active_tab === 'overview' ) {
     ) );
 }
 
+// Dokan Dashboard Header (This should load the nav menu if Dokan isn't doing it automatically)
 dokan_get_template( 'dashboard/header.php', [ 'active_menu' => 'zh-finance' ] );
 ?>
 
 <div class="dokan-dashboard-wrap">
-    <?php dokan_get_template( 'dashboard/sidebar.php', [ 'active_menu' => 'zh-finance' ] ); ?>
+    <?php 
+        // Dokan Sidebar
+        dokan_get_template( 'dashboard/sidebar.php', [ 'active_menu' => 'zh-finance' ] ); 
+    ?>
 
     <div class="dokan-dashboard-content">
         <article class="dashboard-content-area">
@@ -165,21 +170,6 @@ dokan_get_template( 'dashboard/header.php', [ 'active_menu' => 'zh-finance' ] );
                             <?php endif; ?>
                         </tbody>
                     </table>
-                    
-                    <!-- Pagination Stub -->
-                    <?php if ( $total_rows > $limit ) : ?>
-                        <div class="dokan-pagination-container">
-                            <ul class="dokan-pagination">
-                                <!-- TODO: Implement Dokan Pagination Helper -->
-                                <li class="<?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                                    <a href="<?php echo add_query_arg('pagenum', $page - 1); ?>">&laquo; Prev</a>
-                                </li>
-                                <li class="<?php echo ($page * $limit) >= $total_rows ? 'disabled' : ''; ?>">
-                                    <a href="<?php echo add_query_arg('pagenum', $page + 1); ?>">Next &raquo;</a>
-                                </li>
-                            </ul>
-                        </div>
-                    <?php endif; ?>
                 </div>
 
             <?php elseif ( $active_tab === 'statements' ) : ?>
