@@ -60,14 +60,16 @@ class DashboardIntegration {
     }
     
     public static function enqueue_assets() {
-        if ( dokan_is_seller_dashboard() && get_query_var( 'zh-finance' ) ) {
-            // Enqueue CSS for Fintech UI
-            wp_enqueue_style( 
-                'zerohold-finance-css', 
-                ZH_FINANCE_URL . 'assets/css/finance-dashboard.css', 
-                [], 
-                ZH_FINANCE_VERSION 
-            );
+        if ( dokan_is_seller_dashboard() ) {
+            // Enqueue CSS for Fintech UI - Load on all dashboard pages to be safe, or check URL param if query_var fails
+            if ( isset( $_GET['zh-finance'] ) || get_query_var( 'zh-finance' ) || true ) { // Forced for debugging, will refine later
+                wp_enqueue_style( 
+                    'zerohold-finance-css', 
+                    ZH_FINANCE_URL . 'assets/css/finance-dashboard.css', 
+                    [], 
+                    ZH_FINANCE_VERSION 
+                );
+            }
         }
     }
 }
