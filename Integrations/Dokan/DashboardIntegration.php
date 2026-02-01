@@ -44,10 +44,13 @@ class DashboardIntegration {
 
     public static function load_finance_template( $query_vars ) {
         if ( isset( $query_vars['zh-finance'] ) ) {
-            dokan_get_template_part(
-                'finance/dashboard',
-                '',
-                [ 'zerohold-finance', ZH_FINANCE_PATH . 'Templates/' ]
+            // We use dokan_get_template because dokan_get_template_part does not accept a custom path argument.
+            // dokan_get_template( $template_name, $args, $template_path, $default_path );
+            dokan_get_template( 
+                'finance/dashboard.php', 
+                [], 
+                'zerohold-finance/', 
+                ZH_FINANCE_PATH . 'Templates/' 
             );
             exit;
         }
