@@ -42,32 +42,22 @@ class ChargeEngine {
     }
 
     /**
-     * Get active rules for a specific Trigger
-     * (Currently HARDCODED for Phase 0 MVP)
+     * Get active rules for a specific Trigger from DB
      */
     private static function get_rules_for_trigger( $trigger ) {
-        $rules = [];
-
-        // HARDCODED RULE: 10% Platform Commission on Order Complete
-        if ( $trigger === 'order_completed' ) {
-            $rules[] = [
-                'id'          => 'rule_platform_comm_10',
-                'title'       => 'Platform Commission',
-                'type'        => 'percentage',
-                'value'       => 10.00, // 10%
-                'recipient'   => 'admin', // Goes to platform
-                'description' => 'Standard platform fee',
-            ];
-        }
-
-        return $rules;
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'zh_charge_rules';
+        
+        return $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM $table_name WHERE trigger_event = %s AND status = 'active'",
+            $trigger
+        ) );
     }
 
     /**
      * Process a single rule and creating Ledger Entries
      */
     private static function process_rule( $rule, $payload ) {
-        // We need an Order object to calculate amounts
         if ( empty( $payload['order_id'] ) ) {
             return;
         }
@@ -78,47 +68,70 @@ class ChargeEngine {
         }
 
         // 1. Calculate Amount
-        // TODO: This should be Net Sales (Product Total), likely excluding tax/shipping for commission
-        // For MVP, lets use order total or subtotal of the vendor's items.
-        // But $order might be a sub-order (Dokan) or parent.
-        // In Dokan, vendors have sub-orders. We assume $order is the sub-order.
-        
-        $basis_amount = $order->get_subtotal(); // Commission usually on product price
+        $basis_amount = $order->get_subtotal();
         $charge_amount = 0;
 
-        if ( $rule['type'] === 'percentage' ) {
-            $charge_amount = ( $basis_amount * $rule['value'] ) / 100;
+        if ( $rule->amount_type === 'percentage' ) {
+            $charge_amount = ( $basis_amount * $rule->amount_value ) / 100;
+        } else {
+            // Fixed amount logic
+            // TODO: In future, multiply by quantity if condition_type is 'per_item/per_box'
+            $charge_amount = $rule->amount_value;
         }
 
-        // 2. Prepare Double-Entry Entities
-        // Vendor (Paying the fee)
+        if ( $charge_amount <= 0 ) {
+            return;
+        }
+
+        // 2. Determine Receiver(s) - Handle Split
+        $receivers = [];
+
+        if ( $rule->split_enabled ) {
+            // Split into two credits
+            $receivers[] = [
+                'entity_type' => 'admin',
+                'amount'      => ( $charge_amount * $rule->admin_profit_pct ) / 100,
+                'impact'      => $rule->impact_slug . '_profit'
+            ];
+            $receivers[] = [
+                'entity_type' => 'platform',
+                'amount'      => ( $charge_amount * $rule->external_cost_pct ) / 100,
+                'impact'      => $rule->impact_slug . '_cost'
+            ];
+        } else {
+            // Single Receiver
+            $receivers[] = [
+                'entity_type' => $rule->to_entity_type,
+                'amount'      => $charge_amount,
+                'impact'      => $rule->impact_slug
+            ];
+        }
+
+        // 3. Record in Ledger
+        $from_id = ( $rule->from_entity_type === 'buyer' ) ? $payload['customer_id'] : $payload['vendor_id'];
+        
         $from_entity = [
-            'type'   => 'vendor',
-            'id'     => $payload['vendor_id'],
-            'nature' => 'claim' // Vendor balance is a liability/claim
+            'type'   => $rule->from_entity_type,
+            'id'     => $from_id,
+            'nature' => 'claim'
         ];
 
-        // Platform (Receiving the fee)
-        $to_entity = [
-            'type'   => 'platform',
-            'id'     => 0, // System/Admin
-            'nature' => 'real' // Revenue
-        ];
+        foreach ( $receivers as $receiver ) {
+            $to_entity = [
+                'type'   => $receiver['entity_type'],
+                'id'     => 0, // System entities
+                'nature' => ( $receiver['entity_type'] === 'admin' ) ? 'real' : 'claim'
+            ];
 
-        // 3. Record in Ledger (Debit Vendor, Credit Platform)
-        if ( $charge_amount > 0 ) {
             LedgerService::record(
                 $from_entity,
                 $to_entity,
-                $charge_amount,
-                'fee',   // Impact/Taxonomy
-                'order', // Reference Type
-                $payload['order_id'], // Reference ID
-                'none'   // Lock Type (Fees are usually immediate/settled)
+                $receiver['amount'],
+                $receiver['impact'],
+                'order',
+                $payload['order_id'],
+                $rule->lock_type
             );
-
-            // 3. Credit the Admin (Optional: if we tracked Admin Wallet, we'd do it here)
-            // error_log( "Charged Vendor #{$payload['vendor_id']} $charge_amount for {$rule['title']}" );
         }
     }
 }

@@ -39,9 +39,10 @@ class FinanceObserver {
 
         // Fire Canonical Event
         do_action( 'zh_finance_event', 'order_completed', [
-            'order_id'  => $order_id,
-            'vendor_id' => $vendor_id,
-            'timestamp' => current_time( 'mysql' ),
+            'order_id'    => $order_id,
+            'vendor_id'   => $vendor_id,
+            'customer_id' => $order->get_customer_id(),
+            'timestamp'   => current_time( 'mysql' ),
         ]);
     }
 }
