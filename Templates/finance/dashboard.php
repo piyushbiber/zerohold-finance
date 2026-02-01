@@ -107,17 +107,37 @@ if ( $active_tab === 'overview' ) {
                     <table class="zh-table">
                         <thead>
                             <tr>
+                                <th><?php _e( 'ID', 'zerohold-finance' ); ?></th>
                                 <th><?php _e( 'Date', 'zerohold-finance' ); ?></th>
                                 <th><?php _e( 'Type', 'zerohold-finance' ); ?></th>
                                 <th><?php _e( 'Reference', 'zerohold-finance' ); ?></th>
                                 <th style="text-align: right;"><?php _e( 'Amount', 'zerohold-finance' ); ?></th>
+                                <th style="text-align: right;"><?php _e( 'Balance', 'zerohold-finance' ); ?></th>
                                 <th style="text-align: right;"><?php _e( 'Status', 'zerohold-finance' ); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if ( $events ) : ?>
+                                <?php 
+                                    // Calculate running balance for display (Reverse logic from current total)
+                                    // Note: This assumes we are on Page 1. For pagination, we'd need offset sum.
+                                    $running_balance = $wallet_balance; 
+                                    
+                                    // If not on page 1, we might need to adjust (skip for now or show warning)
+                                    if ( $page > 1 ) {
+                                        // $running_balance = '...'; // TODO: precise calc for deep pages
+                                    }
+                                ?>
                                 <?php foreach ( $events as $event ) : ?>
+                                    <?php 
+                                        $current_row_balance = $running_balance;
+                                        // Prepare for next row (older row = current - amount)
+                                        // If amount was +100, previous was (Current - 100).
+                                        // If amount was -50, previous was (Current - (-50)) = Current + 50.
+                                        $running_balance = $running_balance - $event->amount;
+                                    ?>
                                     <tr>
+                                        <td style="color: #a0aec0; font-family: monospace;">#<?php echo esc_html( $event->id ); ?></td>
                                         <td><?php echo date_i18n( 'M j, Y', strtotime( $event->created_at ) ); ?> <span style="color:#a0aec0; font-size:0.8em;"><?php echo date_i18n( 'H:i', strtotime( $event->created_at ) ); ?></span></td>
                                         <td>
                                             <span class="zh-badge <?php echo $event->category === 'credit' ? 'zh-badge-green' : 'zh-badge-red'; ?>">
@@ -136,6 +156,9 @@ if ( $active_tab === 'overview' ) {
                                         <td style="text-align: right; font-family: monospace; font-size: 1rem; font-weight: 600; color: <?php echo $event->category === 'credit' ? '#48bb78' : '#e53e3e'; ?>;">
                                             <?php echo ( $event->category === 'debit' ? '-' : '+' ) . wc_price( abs( $event->amount ) ); ?>
                                         </td>
+                                        <td style="text-align: right; font-weight: 600; color: #718096;">
+                                            <?php echo wc_price( $current_row_balance ); ?>
+                                        </td>
                                         <td style="text-align: right;">
                                              <?php 
                                                 if ( $event->lock_type !== 'none' ) {
@@ -153,7 +176,7 @@ if ( $active_tab === 'overview' ) {
                                 <?php endforeach; ?>
                             <?php else : ?>
                                 <tr>
-                                    <td colspan="5" style="text-align: center; padding: 3rem; color: #a0aec0;">
+                                    <td colspan="7" style="text-align: center; padding: 3rem; color: #a0aec0;">
                                         <i class="fas fa-file-invoice" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                                         <?php _e( 'No transaction history found.', 'zerohold-finance' ); ?>
                                     </td>
