@@ -3,10 +3,7 @@
  * ZeroHold Finance Dashboard Template (Content Only)
  * Location: Templates/finance/dashboard.php
  * 
- * Loaded via dokan_get_template_part inside Dokan Dashboard Shortcode.
- * Header and Sidebar are already rendered by Dokan.
- * 
- * @var $current_user
+ * Loaded via dokan_get_template inside Dokan Dashboard Shortcode.
  */
 
 use ZeroHold\Finance\Core\QueryEngine;
@@ -14,6 +11,7 @@ use ZeroHold\Finance\Core\QueryEngine;
 $vendor_id = dokan_get_current_user_id();
 
 // Fetch Data
+// ... data fetching logic ...
 $wallet_balance = QueryEngine::get_wallet_balance( 'vendor', $vendor_id );
 $locked_balance = QueryEngine::get_locked_balance( 'vendor', $vendor_id );
 $withdrawable   = QueryEngine::get_withdrawable_balance( 'vendor', $vendor_id );
@@ -47,24 +45,39 @@ if ( $active_tab === 'overview' ) {
 }
 ?>
 
-<div class="dokan-dashboard-content">
-    <header class="dokan-dashboard-header">
-        <h1 class="entry-title"><?php _e( 'Finance & Wallet', 'zerohold-finance' ); ?></h1>
-    </header>
+<?php do_action( 'dokan_dashboard_wrap_start' ); ?>
 
-    <!-- Finance Tabs -->
-    <ul class="dokan-dashboard-header-nav" style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-        <li class="<?php echo $active_tab === 'overview' ? 'active' : ''; ?>" style="display: inline-block; margin-right: 20px;">
-            <a href="<?php echo dokan_get_navigation_url( 'zh-finance' ); ?>" style="text-decoration: none; font-weight: bold; color: <?php echo $active_tab === 'overview' ? '#000' : '#666'; ?>;">
-                <?php _e( 'Overview & Ledger', 'zerohold-finance' ); ?>
-            </a>
-        </li>
-        <li class="<?php echo $active_tab === 'statements' ? 'active' : ''; ?>" style="display: inline-block;">
-            <a href="<?php echo add_query_arg( 'tab', 'statements', dokan_get_navigation_url( 'zh-finance' ) ); ?>" style="text-decoration: none; font-weight: bold; color: <?php echo $active_tab === 'statements' ? '#000' : '#666'; ?>;">
-                <?php _e( 'Statements', 'zerohold-finance' ); ?>
-            </a>
-        </li>
-    </ul>
+<div class="dokan-dashboard-wrap">
+
+    <?php
+        /**
+         *  dokan_dashboard_content_before hook
+         *  @hooked get_dashboard_side_navigation
+         */
+        do_action( 'dokan_dashboard_content_before' );
+    ?>
+
+    <div class="dokan-dashboard-content">
+
+        <?php do_action( 'dokan_finance_content_inside_before' ); ?>
+
+        <header class="dokan-dashboard-header">
+            <h1 class="entry-title"><?php _e( 'Finance & Wallet', 'zerohold-finance' ); ?></h1>
+        </header>
+
+        <!-- Finance Tabs -->
+        <ul class="dokan-dashboard-header-nav" style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+            <li class="<?php echo $active_tab === 'overview' ? 'active' : ''; ?>" style="display: inline-block; margin-right: 20px;">
+                <a href="<?php echo dokan_get_navigation_url( 'zh-finance' ); ?>" style="text-decoration: none; font-weight: bold; color: <?php echo $active_tab === 'overview' ? '#000' : '#666'; ?>;">
+                    <?php _e( 'Overview & Ledger', 'zerohold-finance' ); ?>
+                </a>
+            </li>
+            <li class="<?php echo $active_tab === 'statements' ? 'active' : ''; ?>" style="display: inline-block;">
+                <a href="<?php echo add_query_arg( 'tab', 'statements', dokan_get_navigation_url( 'zh-finance' ) ); ?>" style="text-decoration: none; font-weight: bold; color: <?php echo $active_tab === 'statements' ? '#000' : '#666'; ?>;">
+                    <?php _e( 'Statements', 'zerohold-finance' ); ?>
+                </a>
+            </li>
+        </ul>
 
     <?php if ( $active_tab === 'overview' ) : ?>
         <!-- Wallet Overview Cards -->
@@ -190,4 +203,8 @@ if ( $active_tab === 'overview' ) {
         </div>
     <?php endif; ?>
 
-</div>
+    </div> <!-- .dokan-dashboard-content -->
+
+</div> <!-- .dokan-dashboard-wrap -->
+
+<?php do_action( 'dokan_dashboard_wrap_end' ); ?>
