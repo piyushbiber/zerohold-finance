@@ -45,21 +45,22 @@ if ( $active_tab === 'overview' ) {
 }
 ?>
 
-<?php do_action( 'dokan_dashboard_wrap_start' ); ?>
+<!-- Wrappers commented out for debugging -->
+<?php // do_action( 'dokan_dashboard_wrap_start' ); ?>
 
-<div class="dokan-dashboard-wrap">
+<!-- <div class="dokan-dashboard-wrap"> -->
 
     <?php
         /**
          *  dokan_dashboard_content_before hook
          *  @hooked get_dashboard_side_navigation
          */
-        do_action( 'dokan_dashboard_content_before' );
+        // do_action( 'dokan_dashboard_content_before' );
     ?>
 
     <div class="dokan-dashboard-content">
 
-        <?php do_action( 'dokan_finance_content_inside_before' ); ?>
+        <?php // do_action( 'dokan_finance_content_inside_before' ); ?>
 
         <header class="dokan-dashboard-header">
             <h1 class="entry-title"><?php _e( 'Finance & Wallet', 'zerohold-finance' ); ?></h1>
@@ -205,6 +206,6 @@ if ( $active_tab === 'overview' ) {
 
     </div> <!-- .dokan-dashboard-content -->
 
-</div> <!-- .dokan-dashboard-wrap -->
+<!-- </div> --> <!-- .dokan-dashboard-wrap -->
 
-<?php do_action( 'dokan_dashboard_wrap_end' ); ?>
+<?php // do_action( 'dokan_dashboard_wrap_end' ); ?>
