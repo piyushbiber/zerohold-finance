@@ -62,7 +62,7 @@ class ZeroHold_Finance {
 
     public function on_plugins_loaded() {
         // Initialize Core Services
-        ZeroHold\Finance\Core\QueryEngine::init();
+        // ZeroHold\Finance\Core\QueryEngine::init(); // Not needed (static helper)
         
         // Initialize Integrations
         ZeroHold\Finance\Integrations\WooCommerceListener::init();
