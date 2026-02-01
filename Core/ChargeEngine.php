@@ -90,16 +90,31 @@ class ChargeEngine {
             $charge_amount = ( $basis_amount * $rule['value'] ) / 100;
         }
 
-        // 2. Debit the Vendor (They OWE this money)
+        // 2. Prepare Double-Entry Entities
+        // Vendor (Paying the fee)
+        $from_entity = [
+            'type'   => 'vendor',
+            'id'     => $payload['vendor_id'],
+            'nature' => 'claim' // Vendor balance is a liability/claim
+        ];
+
+        // Platform (Receiving the fee)
+        $to_entity = [
+            'type'   => 'platform',
+            'id'     => 0, // System/Admin
+            'nature' => 'real' // Revenue
+        ];
+
+        // 3. Record in Ledger (Debit Vendor, Credit Platform)
         if ( $charge_amount > 0 ) {
-            Ledger::record_entry(
-                $payload['vendor_id'],
+            LedgerService::record(
+                $from_entity,
+                $to_entity,
                 $charge_amount,
-                'debit', // Subtract from their wallet
-                'fee',   // Category
-                'order',
-                $payload['order_id'],
-                $rule['title'] // Description
+                'fee',   // Impact/Taxonomy
+                'order', // Reference Type
+                $payload['order_id'], // Reference ID
+                'none'   // Lock Type (Fees are usually immediate/settled)
             );
 
             // 3. Credit the Admin (Optional: if we tracked Admin Wallet, we'd do it here)
