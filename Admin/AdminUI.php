@@ -275,6 +275,4 @@ class AdminUI {
         </div>
         <?php
     }
-        <?php
-    }
 }
