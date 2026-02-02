@@ -44,6 +44,16 @@ class AdminUI {
             'zh-charge-rules',
             [ __CLASS__, 'render_charge_rules' ]
         );
+
+        // Submenu: Manual Transactions
+        add_submenu_page(
+            'zh-finance',
+            __( 'Manual Transactions', 'zerohold-finance' ),
+            __( 'Manual Transactions', 'zerohold-finance' ),
+            'manage_options',
+            'zh-manual-transactions',
+            [ __CLASS__, 'render_manual_transactions' ]
+        );
     }
 
     /**
@@ -188,10 +198,6 @@ class AdminUI {
                 <div class="zh-card" data-type="recurring">
                     <h3>📅 Recurring</h3>
                     <p>Fixed schedule charges (Monthly subscriptions, Annual fees)</p>
-                </div>
-                <div class="zh-card" data-type="manual">
-                    <h3>✍️ One-Time</h3>
-                    <p>Admin applies charges manually (Penalties, Adjustments)</p>
                 </div>
             </div>
 
@@ -341,8 +347,7 @@ class AdminUI {
                         // Form Dynamic content
                         const titles = {
                             'order': 'Every Order Configuration',
-                            'recurring': 'Recurring Schedule Configuration',
-                            'manual': 'One-Time Manual Charge Setup'
+                            'recurring': 'Recurring Schedule Configuration'
                         };
                         document.getElementById('zh_form_title').innerText = titles[type];
                         
@@ -385,6 +390,23 @@ class AdminUI {
                     window.scrollTo(0, 0);
                 });
             </script>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the Manual Transactions Page
+     */
+    public static function render_manual_transactions() {
+        global $wpdb;
+        ?>
+        <div class="wrap zh-finance-admin">
+            <h1><?php _e( 'Manual Transactions', 'zerohold-finance' ); ?></h1>
+            <p><?php _e( 'Apply ad-hoc debits or credits to specific entities. These are one-time actions and are recorded immediately.', 'zerohold-finance' ); ?></p>
+            
+            <div class="notice notice-info">
+                <p><?php _e( 'Manual Transactions UI is under development.', 'zerohold-finance' ); ?></p>
+            </div>
         </div>
         <?php
     }
