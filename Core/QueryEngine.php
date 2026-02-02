@@ -125,50 +125,42 @@ class QueryEngine {
             "SELECT SUM(amount) FROM $table WHERE money_nature = 'real'" 
         );
 
-        // 2. Platform Liabilities (Total Claims Owed)
-        $metrics['total_liabilities'] = (float) $wpdb->get_var(
-            "SELECT SUM(amount) FROM $table WHERE money_nature = 'claim' AND entity_type IN ('vendor', 'buyer')"
-        );
-
-        // 3. Escrow (Total Locked)
-        $metrics['total_escrow'] = (float) $wpdb->get_var(
-            "SELECT SUM(amount) FROM $table 
-             WHERE lock_type != 'none' 
-             AND (unlock_at IS NULL OR unlock_at > NOW())"
-        );
-
-        // 4. Platform Net Profit
-        $metrics['platform_profit'] = (float) $wpdb->get_var(
-            "SELECT SUM(amount) FROM $table WHERE entity_type = 'admin'"
-        );
-
-        // --- SUB-CARDS ---
+        // --- SUB-CARDS (Always Absolute for Display) ---
 
         // Vendor Liabilities
-        $metrics['vendor_liabilities'] = (float) $wpdb->get_var(
+        $metrics['vendor_liabilities'] = abs( (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table WHERE entity_type = 'vendor' AND money_nature = 'claim'"
-        );
+        ) );
 
         // Buyer Liabilities
-        $metrics['buyer_liabilities'] = (float) $wpdb->get_var(
+        $metrics['buyer_liabilities'] = abs( (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table WHERE entity_type = 'buyer' AND money_nature = 'claim'"
-        );
+        ) );
 
         // Vendor Escrow
-        $metrics['vendor_escrow'] = (float) $wpdb->get_var(
+        $metrics['vendor_escrow'] = abs( (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table 
              WHERE entity_type = 'vendor' 
              AND lock_type != 'none' 
              AND (unlock_at IS NULL OR unlock_at > NOW())"
-        );
+        ) );
 
         // Buyer Escrow
-        $metrics['buyer_escrow'] = (float) $wpdb->get_var(
+        $metrics['buyer_escrow'] = abs( (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table 
              WHERE entity_type = 'buyer' 
              AND lock_type != 'none' 
              AND (unlock_at IS NULL OR unlock_at > NOW())"
-        );
+        ) );
+
+        // --- CALCULATION REFINEMENT ---
+
+        // Recalculate Total Liabilities & Escrow as sum of absolute sub-metrics
+        $metrics['total_liabilities'] = $metrics['vendor_liabilities'] + $metrics['buyer_liabilities'];
+        $metrics['total_escrow']      = $metrics['vendor_escrow'] + $metrics['buyer_escrow'];
+
+        // 4. Platform Net Profit = Bank Pool - Platform Liabilities
+        $metrics['platform_profit'] = $metrics['total_real'] - $metrics['total_liabilities'];
 
         return $metrics;
     }

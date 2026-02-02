@@ -249,7 +249,9 @@ class AdminUI {
                     <!-- Net Profit -->
                     <div class="zh-stat-card zh-card-profit" title="Net earnings retained by the platform after liabilities.">
                         <span class="zh-stat-label">💰 <?php _e( 'Platform Net Profit', 'zerohold-finance' ); ?> <span class="dashicons dashicons-editor-help zh-info-icon"></span></span>
-                        <div class="zh-stat-value" style="color:#1a7f37;"><?php echo wc_price($metrics['platform_profit']); ?></div>
+                        <div class="zh-stat-value" style="color: <?php echo $metrics['platform_profit'] >= 0 ? '#1a7f37' : '#d63638'; ?>;">
+                            <?php echo wc_price($metrics['platform_profit']); ?>
+                        </div>
                         <span class="zh-stat-desc"><?php _e( 'Total platform equity', 'zerohold-finance' ); ?></span>
                     </div>
                 </div>
