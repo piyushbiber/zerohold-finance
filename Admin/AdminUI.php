@@ -119,15 +119,17 @@ class AdminUI {
             }
         }
 
-        // 4. Handle System Reset (DEVELOPER ONLY)
-        if ( isset( $_POST['zh_reset_system'] ) && check_admin_referer( 'zh_reset_system_nonce' ) ) {
-            if ( sanitize_text_field( $_POST['reset_confirmation'] ) === 'RESET ALL DATA' ) {
-                \ZeroHold\Finance\Core\Database::reset_all_data();
-                wp_safe_redirect( add_query_arg( 'zh_msg', 'system_reset' ) );
-                exit;
-            } else {
-                wp_safe_redirect( add_query_arg( 'zh_error', 'wrong_confirmation' ) );
-                exit;
+        // 4. Handle System Reset (DEVELOPER ONLY - Protected by constant)
+        if ( defined('ZH_FINANCE_ALLOW_RESET') && ZH_FINANCE_ALLOW_RESET === true ) {
+            if ( isset( $_POST['zh_reset_system'] ) && check_admin_referer( 'zh_reset_system_nonce' ) ) {
+                if ( sanitize_text_field( $_POST['reset_confirmation'] ) === 'RESET ALL DATA' ) {
+                    \ZeroHold\Finance\Core\Database::reset_all_data();
+                    wp_safe_redirect( add_query_arg( 'zh_msg', 'system_reset' ) );
+                    exit;
+                } else {
+                    wp_safe_redirect( add_query_arg( 'zh_error', 'wrong_confirmation' ) );
+                    exit;
+                }
             }
         }
     }
@@ -263,9 +265,10 @@ class AdminUI {
                 <?php _e( 'Note: These figures are generated directly from the immutable ledger in real-time.', 'zerohold-finance' ); ?>
             </p>
 
-            <!-- Dangerous Area: System Reset -->
+            <!-- Dangerous Area: System Reset (Only shown if constant is set) -->
+            <?php if ( defined('ZH_FINANCE_ALLOW_RESET') && ZH_FINANCE_ALLOW_RESET === true ) : ?>
             <div style="margin-top: 100px; padding: 30px; border: 1px dashed #d63638; border-radius: 8px; background: #fffcfc;">
-                <h3 style="color: #d63638; margin-top: 0;"><?php _e( '☢️ System Reset (Developer Only)', 'zerohold-finance' ); ?></h3>
+                <h3 style="color: #d63638; margin-top: 0;"><?php _e( '☢️ System Reset (Developer Mode Only)', 'zerohold-finance' ); ?></h3>
                 <p><?php _e( 'Use this only BEFORE going to production. This will permanently DELETE all transactions, charge rules, and history.', 'zerohold-finance' ); ?></p>
                 
                 <form method="post" id="zh_reset_form" style="display: flex; gap: 15px; align-items: center;">
@@ -274,6 +277,7 @@ class AdminUI {
                     <input type="submit" name="zh_reset_system" class="button button-link-delete" value="WIPE & RESET FINANCE SYSTEM" onclick="return confirm('EXTREMELY DANGEROUS: Are you absolutely sure?')">
                 </form>
             </div>
+            <?php endif; ?>
         </div>
         <?php
     }
