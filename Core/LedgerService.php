@@ -20,9 +20,11 @@ class LedgerService {
      * @param int $reference_id
      * @param string $lock_type
      * @param string $unlock_at (Y-m-d H:i:s)
+     * @param string $reason Audit note
+     * @param int    $admin_id Admin user who applied the charge
      * @return string|false Entry Group ID on success, false on failure.
      */
-    public static function record( $from_entity, $to_entity, $amount, $impact, $reference_type, $reference_id, $lock_type = 'none', $unlock_at = null ) {
+    public static function record( $from_entity, $to_entity, $amount, $impact, $reference_type, $reference_id, $lock_type = 'none', $unlock_at = null, $reason = null, $admin_id = null ) {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
 
@@ -53,6 +55,8 @@ class LedgerService {
                     'unlock_at'      => $unlock_at,
                     'reference_type' => $reference_type,
                     'reference_id'   => $reference_id,
+                    'reason'         => $reason,
+                    'admin_id'       => $admin_id,
                 ]
             );
 
@@ -71,6 +75,8 @@ class LedgerService {
                     'unlock_at'      => $unlock_at,
                     'reference_type' => $reference_type,
                     'reference_id'   => $reference_id,
+                    'reason'         => $reason,
+                    'admin_id'       => $admin_id,
                 ]
             );
 

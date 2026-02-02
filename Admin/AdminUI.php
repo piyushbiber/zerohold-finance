@@ -399,14 +399,212 @@ class AdminUI {
      */
     public static function render_manual_transactions() {
         global $wpdb;
+        $table_events = $wpdb->prefix . 'zh_wallet_events';
+        
+        // Handle Form Submission
+        if ( isset( $_POST['zh_apply_manual'] ) && check_admin_referer( 'zh_manual_trans_nonce' ) ) {
+            $type        = sanitize_text_field( $_POST['trans_type'] ); // debit/credit
+            $entity_type = sanitize_text_field( $_POST['entity_type'] ); // vendor/buyer
+            $scope       = sanitize_text_field( $_POST['target_scope'] ); // single/all
+            $impact      = sanitize_text_field( $_POST['impact'] );
+            $amount      = floatval( $_POST['amount'] );
+            $reason      = sanitize_textarea_field( $_POST['reason'] );
+            $lock_type   = sanitize_text_field( $_POST['lock_type'] );
+            $admin_id    = get_current_user_id();
+
+            if ( empty( $reason ) ) {
+                echo '<div class="error"><p>Audit Reason is mandatory for manual transactions.</p></div>';
+            } else {
+                $targets = [];
+                if ( $scope === 'single' ) {
+                    $targets[] = intval( $_POST['target_user_id'] );
+                } else {
+                    // Bulk Apply to all active vendors
+                    $vendors = get_users( [ 'role' => 'seller', 'fields' => 'ID' ] );
+                    $targets = $vendors;
+                }
+
+                $success_count = 0;
+                foreach ( $targets as $user_id ) {
+                    // Define entities based on debit/credit
+                    // If Debit Vendor -> To Admin
+                    // If Credit Vendor -> From Admin
+                    if ( $type === 'debit' ) {
+                        $from = [ 'type' => $entity_type, 'id' => $user_id, 'nature' => 'claim' ];
+                        $to   = [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ];
+                    } else {
+                        $from = [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ];
+                        $to   = [ 'type' => $entity_type, 'id' => $user_id, 'nature' => 'claim' ];
+                    }
+
+                    $res = \ZeroHold\Finance\Core\LedgerService::record(
+                        $from, $to, $amount, $impact, 'manual', 0, $lock_type, null, $reason, $admin_id
+                    );
+
+                    if ( $res ) $success_count++;
+                }
+
+                echo '<div class="updated"><p>Successfully applied ' . $success_count . ' transaction(s).</p></div>';
+            }
+        }
+
+        // Fetch History (Target-perspective filter to avoid double rows)
+        $history = $wpdb->get_results( "SELECT * FROM $table_events WHERE reference_type = 'manual' AND entity_type IN ('vendor', 'buyer') ORDER BY created_at DESC LIMIT 100" );
+        
+        // Fetch Vendors for Single Selection
+        $vendors = get_users( [ 'role' => 'seller', 'fields' => [ 'ID', 'display_name' ] ] );
+        $buyers  = get_users( [ 'role' => 'customer', 'fields' => [ 'ID', 'display_name' ] ] );
         ?>
         <div class="wrap zh-finance-admin">
+            <style>
+                .zh-form-section { background: #fff; padding: 30px; border: 1px solid #ccd0d4; border-radius: 8px; margin-bottom: 30px; max-width: 900px; }
+                .zh-tooltip { color: #2271b1; font-style: italic; font-size: 12px; display: block; margin-top: 4px; }
+                .zh-required { color: #d63638; }
+                .zh-danger-zone { border-left: 4px solid #d63638; }
+            </style>
+
             <h1><?php _e( 'Manual Transactions', 'zerohold-finance' ); ?></h1>
-            <p><?php _e( 'Apply ad-hoc debits or credits to specific entities. These are one-time actions and are recorded immediately.', 'zerohold-finance' ); ?></p>
+            <p><?php _e( 'Apply ad-hoc debits or credits. These are one-time actions and are recorded immediately.', 'zerohold-finance' ); ?></p>
             
-            <div class="notice notice-info">
-                <p><?php _e( 'Manual Transactions UI is under development.', 'zerohold-finance' ); ?></p>
+            <div class="zh-form-section">
+                <h2><?php _e( 'New Manual Transaction', 'zerohold-finance' ); ?></h2>
+                <form method="post" id="zh_manual_form">
+                    <?php wp_nonce_field( 'zh_manual_trans_nonce' ); ?>
+                    
+                    <table class="form-table">
+                        <tr>
+                            <th><label>Transaction Direction</label></th>
+                            <td>
+                                <select name="trans_type" style="width: 120px;">
+                                    <option value="debit">Debit (Take)</option>
+                                    <option value="credit">Credit (Give)</option>
+                                </select>
+                                &nbsp; Type: 
+                                <select name="entity_type" id="zh_entity_type">
+                                    <option value="vendor">Vendor</option>
+                                    <option value="buyer">Buyer</option>
+                                </select>
+                                &nbsp; Target:
+                                <select name="target_scope" id="zh_target_scope">
+                                    <option value="single">Single Entity</option>
+                                    <option value="all">All Vendors (Bulk)</option>
+                                </select>
+                                <span class="zh-tooltip">Manual transactions are applied immediately and are not reusable.</span>
+                            </td>
+                        </tr>
+
+                        <tr id="zh_single_target_row">
+                            <th><label>Select Target <span class="zh-required">*</span></label></th>
+                            <td>
+                                <select name="target_user_id" class="regular-text" id="zh_user_select">
+                                    <optgroup label="Vendors" class="zh-vendor-group">
+                                        <?php foreach($vendors as $v) echo '<option value="'.$v->ID.'">'.esc_html($v->display_name).' (ID: '.$v->ID.')</option>'; ?>
+                                    </optgroup>
+                                    <optgroup label="Buyers" class="zh-buyer-group" style="display:none;">
+                                        <?php foreach($buyers as $b) echo '<option value="'.$b->ID.'">'.esc_html($b->display_name).' (ID: '.$b->ID.')</option>'; ?>
+                                    </optgroup>
+                                </select>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th><label>Transaction Details</label></th>
+                            <td>
+                                Impact Label: <input type="text" name="impact" placeholder="e.g. penalty" required>
+                                &nbsp; Amount: ₹<input type="number" step="0.01" name="amount" style="width: 100px;" required>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th><label>Audit Reason <span class="zh-required">*</span></label></th>
+                            <td>
+                                <textarea name="reason" rows="3" class="large-text" required placeholder="Describe why this transaction is being applied..."></textarea>
+                                <span class="zh-tooltip">Mandatory audit gold. Why are you doing this?</span>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th><label>Lock Type</label></th>
+                            <td>
+                                <select name="lock_type">
+                                    <option value="none">none (Immediate)</option>
+                                    <option value="manual_hold">manual_hold (Locked for review)</option>
+                                </select>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <p class="submit">
+                        <input type="submit" name="zh_apply_manual" class="button button-primary button-large" value="Apply Transaction">
+                    </p>
+                </form>
             </div>
+
+            <h2><?php _e( 'Manual Transaction History', 'zerohold-finance' ); ?></h2>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;"><?php _e( 'Date', 'zerohold-finance' ); ?></th>
+                        <th><?php _e( 'Target', 'zerohold-finance' ); ?></th>
+                        <th style="width: 10%;"><?php _e( 'Type', 'zerohold-finance' ); ?></th>
+                        <th><?php _e( 'Impact / Amount', 'zerohold-finance' ); ?></th>
+                        <th style="width: 25%;"><?php _e( 'Reason', 'zerohold-finance' ); ?></th>
+                        <th><?php _e( 'Applied By', 'zerohold-finance' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if ( $history ) : foreach ( $history as $h ) : 
+                        $user = get_userdata($h->entity_id);
+                        $admin = get_userdata($h->admin_id);
+                        ?>
+                        <tr>
+                            <td><?php echo esc_html($h->created_at); ?></td>
+                            <td><?php echo esc_html($user ? $user->display_name : 'All Vendors'); ?><br/><small><?php echo esc_html(ucfirst($h->entity_type)); ?></small></td>
+                            <td><?php echo $h->amount > 0 ? '<span style="color:green;">Credit</span>' : '<span style="color:red;">Debit</span>'; ?></td>
+                            <td>
+                                <code><?php echo esc_html($h->impact); ?></code><br/>
+                                <strong><?php echo wc_price(abs($h->amount)); ?></strong>
+                            </td>
+                            <td><small><?php echo esc_html($h->reason); ?></small></td>
+                            <td><?php echo esc_html($admin ? $admin->display_name : 'System'); ?></td>
+                        </tr>
+                    <?php endforeach; else : ?>
+                        <tr><td colspan="6"><?php _e( 'No manual transactions recorded.', 'zerohold-finance' ); ?></td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+
+            <script>
+                document.getElementById('zh_entity_type').addEventListener('change', function() {
+                    const isVendor = this.value === 'vendor';
+                    document.querySelector('.zh-vendor-group').style.display = isVendor ? '' : 'none';
+                    document.querySelector('.zh-buyer-group').style.display = isVendor ? 'none' : '';
+                    if (!isVendor) {
+                        document.getElementById('zh_target_scope').value = 'single';
+                        document.getElementById('zh_target_scope').options[1].disabled = true;
+                    } else {
+                        document.getElementById('zh_target_scope').options[1].disabled = false;
+                    }
+                });
+
+                document.getElementById('zh_target_scope').addEventListener('change', function() {
+                    document.getElementById('zh_single_target_row').style.display = (this.value === 'single' ? 'table-row' : 'none');
+                    if (this.value === 'all') {
+                        document.getElementById('zh_manual_form').classList.add('zh-danger-zone');
+                    } else {
+                        document.getElementById('zh_manual_form').classList.remove('zh-danger-zone');
+                    }
+                });
+
+                document.getElementById('zh_manual_form').addEventListener('submit', function(e) {
+                    const scope = document.getElementById('zh_target_scope').value;
+                    if (scope === 'all') {
+                        if (!confirm('⚠️ WARNING: This will apply a transaction to ALL active vendors. Are you sure?')) {
+                            e.preventDefault();
+                        }
+                    }
+                });
+            </script>
         </div>
         <?php
     }
