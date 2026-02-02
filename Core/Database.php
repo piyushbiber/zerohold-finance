@@ -47,6 +47,8 @@ class Database {
             reference_type varchar(64) NOT NULL,
             reference_id bigint(20) unsigned NOT NULL,
             statement_id bigint(20) unsigned DEFAULT NULL,
+            reason text DEFAULT NULL,
+            admin_id bigint(20) unsigned DEFAULT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
             PRIMARY KEY  (id),
             KEY entity_idx (entity_type, entity_id),
