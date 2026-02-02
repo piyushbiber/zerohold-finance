@@ -100,4 +100,40 @@ class QueryEngine {
 
         return $breakdown;
     }
+    /**
+     * Get Global Financial Metrics for the platform.
+     * 
+     * @return array
+     */
+    public static function get_global_metrics() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'zh_wallet_events';
+
+        $metrics = [
+            'total_real'    => 0.00, // Total actual money held (Bank Balance)
+            'total_claims'  => 0.00, // Total liabilities/assets (IOUs)
+            'total_locked'  => 0.00, // Money currently held in escrow
+        ];
+
+        // 1. Total Real Money (The "Bank")
+        // We sum all 'real' entries across all entities. 
+        $metrics['total_real'] = (float) $wpdb->get_var( 
+            "SELECT SUM(amount) FROM $table WHERE money_nature = 'real'" 
+        );
+
+        // 2. Total Claims (Net Owed to Vendors/Buyers)
+        // Usually, Vendor/Buyer balances are the primary concern.
+        $metrics['total_claims'] = (float) $wpdb->get_var(
+            "SELECT SUM(amount) FROM $table WHERE money_nature = 'claim' AND entity_type IN ('vendor', 'buyer')"
+        );
+
+        // 3. Total Locked (Funds not yet withdrawable)
+        $metrics['total_locked'] = (float) $wpdb->get_var(
+            "SELECT SUM(amount) FROM $table 
+             WHERE lock_type != 'none' 
+             AND (unlock_at IS NULL OR unlock_at > NOW())"
+        );
+
+        return $metrics;
+    }
 }

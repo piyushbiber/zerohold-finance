@@ -160,14 +160,88 @@ class AdminUI {
      * Render the main Finance Dashboard (Admin View)
      */
     public static function render_dashboard() {
+        $metrics = \ZeroHold\Finance\Core\QueryEngine::get_global_metrics();
+        $pnl     = \ZeroHold\Finance\Core\QueryEngine::get_admin_pnl_breakdown();
         ?>
-        <div class="wrap">
-            <h1><?php _e( 'ZeroHold Finance Dashboard', 'zerohold-finance' ); ?></h1>
-            <p><?php _e( 'Global overview of the Central Bank ledger.', 'zerohold-finance' ); ?></p>
-            <hr>
-            <div class="notice notice-info">
-                <p><?php _e( 'Admin Dashboard is under construction. Please use "Charge Rules" to manage automation.', 'zerohold-finance' ); ?></p>
+        <div class="wrap zh-finance-admin">
+            <style>
+                .zh-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; }
+                .zh-stat-card { background: #fff; padding: 25px; border-radius: 8px; border: 1px solid #ccd0d4; box-shadow: 0 2px 4px rgba(0,0,-0.05); }
+                .zh-stat-label { font-size: 14px; color: #646970; font-weight: 600; text-transform: uppercase; margin-bottom: 10px; display: block; }
+                .zh-stat-value { font-size: 32px; font-weight: 700; color: #1d2327; }
+                .zh-section { background: #fff; padding: 25px; border-radius: 8px; border: 1px solid #ccd0d4; margin-top: 30px; }
+                .zh-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+                .zh-badge-real { background: #e7f5ec; color: #1a7f37; }
+                .zh-badge-claim { background: #f0f6fa; color: #0969da; }
+            </style>
+
+            <h1><?php _e( 'ZeroHold Finance - Central Bank', 'zerohold-finance' ); ?></h1>
+            
+            <div class="zh-stats-grid">
+                <!-- Total Real Balance -->
+                <div class="zh-stat-card">
+                    <span class="zh-stat-label"><?php _e( 'Bank Pool (Real Money)', 'zerohold-finance' ); ?> <span class="zh-badge zh-badge-real">CASH</span></span>
+                    <div class="zh-stat-value"><?php echo wc_price($metrics['total_real']); ?></div>
+                    <p class="description"><?php _e( 'Total liquidity actually held in bank/gateways.', 'zerohold-finance' ); ?></p>
+                </div>
+
+                <!-- Vendor Liabilities -->
+                <div class="zh-stat-card">
+                    <span class="zh-stat-label"><?php _e( 'Vendor Liabilities', 'zerohold-finance' ); ?> <span class="zh-badge zh-badge-claim">OWED</span></span>
+                    <div class="zh-stat-value" style="color:#d63638;"><?php echo wc_price(abs($metrics['total_claims'])); ?></div>
+                    <p class="description"><?php _e( 'Total funds owed to Vendors (Withdrawable + Locked).', 'zerohold-finance' ); ?></p>
+                </div>
+
+                <!-- Locked Funds -->
+                <div class="zh-stat-card">
+                    <span class="zh-stat-label"><?php _e( 'Escrow (Locked Assets)', 'zerohold-finance' ); ?></span>
+                    <div class="zh-stat-value"><?php echo wc_price($metrics['total_locked']); ?></div>
+                    <p class="description"><?php _e( 'Funds held under return policy/payment hold.', 'zerohold-finance' ); ?></p>
+                </div>
             </div>
+
+            <div class="zh-section">
+                <h2><?php _e( 'Profit & Loss Breakdown (by Impact)', 'zerohold-finance' ); ?></h2>
+                <p><?php _e( 'Net balance of the Platform for each revenue stream.', 'zerohold-finance' ); ?></p>
+                
+                <table class="wp-list-table widefat fixed striped" style="margin-top: 20px;">
+                    <thead>
+                        <tr>
+                            <th><?php _e( 'Impact Type', 'zerohold-finance' ); ?></th>
+                            <th><?php _e( 'Description', 'zerohold-finance' ); ?></th>
+                            <th style="text-align: right;"><?php _e( 'Net Platform Profit', 'zerohold-finance' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if ( ! empty( $pnl ) ) : foreach ( $pnl as $impact => $amount ) : ?>
+                            <tr>
+                                <td><code><?php echo esc_html($impact); ?></code></td>
+                                <td>
+                                    <?php 
+                                        // Simple mapping for common impacts
+                                        $desc = [
+                                            'earnings' => 'Order Commissions & Sales Share',
+                                            'shipping' => 'Shipping Cost Reconciliation',
+                                            'sms_fee'  => 'Automated SMS Charges',
+                                            'manual'   => 'Manual Adjustments & Penalties'
+                                        ];
+                                        echo isset($desc[$impact]) ? esc_html($desc[$impact]) : 'Automated Rule/Charge';
+                                    ?>
+                                </td>
+                                <td style="text-align: right; font-weight: bold; <?php echo $amount >= 0 ? 'color:green;' : 'color:red;'; ?>">
+                                    <?php echo wc_price($amount); ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; else : ?>
+                            <tr><td colspan="3"><?php _e( 'No revenue data found.', 'zerohold-finance' ); ?></td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <p style="margin-top: 30px; color: #666; font-style: italic;">
+                <?php _e( 'Note: These figures are generated directly from the immutable ledger in real-time.', 'zerohold-finance' ); ?>
+            </p>
         </div>
         <?php
     }
