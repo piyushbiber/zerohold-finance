@@ -168,7 +168,9 @@ class Database {
         // dbDelta doesn't handle triggers well
         $wpdb->query( $sql_update );
         $wpdb->query( $sql_delete );
-        /**
+    }
+
+    /**
      * WIPE ALL DATA (Developer Only)
      * Clears all ledger entries, rules, and logs.
      * Resets the system to a clean state for production.
@@ -196,5 +198,4 @@ class Database {
         // 3. Re-enable Protection
         self::create_triggers();
     }
-}
 }
