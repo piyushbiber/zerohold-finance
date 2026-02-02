@@ -118,6 +118,18 @@ class AdminUI {
                 exit;
             }
         }
+
+        // 4. Handle System Reset (DEVELOPER ONLY)
+        if ( isset( $_POST['zh_reset_system'] ) && check_admin_referer( 'zh_reset_system_nonce' ) ) {
+            if ( sanitize_text_field( $_POST['reset_confirmation'] ) === 'RESET ALL DATA' ) {
+                \ZeroHold\Finance\Core\Database::reset_all_data();
+                wp_safe_redirect( add_query_arg( 'zh_msg', 'system_reset' ) );
+                exit;
+            } else {
+                wp_safe_redirect( add_query_arg( 'zh_error', 'wrong_confirmation' ) );
+                exit;
+            }
+        }
     }
 
     /**
@@ -162,6 +174,14 @@ class AdminUI {
     public static function render_dashboard() {
         $metrics = \ZeroHold\Finance\Core\QueryEngine::get_global_metrics();
         $pnl     = \ZeroHold\Finance\Core\QueryEngine::get_admin_pnl_breakdown();
+        
+        // Messages
+        if ( isset( $_GET['zh_msg'] ) && $_GET['zh_msg'] === 'system_reset' ) {
+            echo '<div class="notice notice-warning is-dismissible"><p><strong>SUCCESS:</strong> All financial data has been wiped and the system has been reset for production.</p></div>';
+        }
+        if ( isset( $_GET['zh_error'] ) && $_GET['zh_error'] === 'wrong_confirmation' ) {
+            echo '<div class="error"><p><strong>FAILED:</strong> Reset confirmation string was incorrect. No data was cleared.</p></div>';
+        }
         ?>
         <div class="wrap zh-finance-admin">
             <style>
@@ -242,6 +262,18 @@ class AdminUI {
             <p style="margin-top: 30px; color: #666; font-style: italic;">
                 <?php _e( 'Note: These figures are generated directly from the immutable ledger in real-time.', 'zerohold-finance' ); ?>
             </p>
+
+            <!-- Dangerous Area: System Reset -->
+            <div style="margin-top: 100px; padding: 30px; border: 1px dashed #d63638; border-radius: 8px; background: #fffcfc;">
+                <h3 style="color: #d63638; margin-top: 0;"><?php _e( '☢️ System Reset (Developer Only)', 'zerohold-finance' ); ?></h3>
+                <p><?php _e( 'Use this only BEFORE going to production. This will permanently DELETE all transactions, charge rules, and history.', 'zerohold-finance' ); ?></p>
+                
+                <form method="post" id="zh_reset_form" style="display: flex; gap: 15px; align-items: center;">
+                    <?php wp_nonce_field( 'zh_reset_system_nonce' ); ?>
+                    <input type="text" name="reset_confirmation" placeholder="Type 'RESET ALL DATA' to confirm" style="width: 250px;">
+                    <input type="submit" name="zh_reset_system" class="button button-link-delete" value="WIPE & RESET FINANCE SYSTEM" onclick="return confirm('EXTREMELY DANGEROUS: Are you absolutely sure?')">
+                </form>
+            </div>
         </div>
         <?php
     }
