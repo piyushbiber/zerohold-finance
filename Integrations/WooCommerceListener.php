@@ -60,21 +60,21 @@ class WooCommerceListener {
         
         $payload = [
             'from' => [
-                'type' => 'admin',
-                'id' => 0,
-                'nature' => 'real' // Admin holds the real money from gateway
+                'type'   => 'buyer',
+                'id'     => $order->get_customer_id() ?: 0,
+                'nature' => 'claim' // Pulling from buyer's internal obligation
             ],
             'to' => [
-                'type' => 'vendor',
-                'id' => $vendor_id,
-                'nature' => 'claim' // Vendor gets a claim
+                'type'   => 'vendor',
+                'id'     => $vendor_id,
+                'nature' => 'claim' // Creating internal obligation to vendor
             ],
-            'amount' => $amount,
-            'impact' => 'earnings',
+            'amount'         => $amount,
+            'impact'         => 'earnings',
             'reference_type' => 'order',
-            'reference_id' => $order_id,
-            'lock_type' => 'order_hold',
-            'unlock_at' => null // Unknown until delivery
+            'reference_id'   => $order_id,
+            'lock_type'      => 'order_hold',
+            'unlock_at'      => null
         ];
 
         $result = FinanceIngress::handle_event( $payload );

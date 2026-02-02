@@ -90,6 +90,7 @@ class QueryEngine {
             "SELECT impact, SUM(amount) as total 
              FROM $table 
              WHERE entity_type = 'admin' 
+             AND impact NOT IN ('wallet_recharge')
              GROUP BY impact" 
         );
 
@@ -120,9 +121,9 @@ class QueryEngine {
             'buyer_escrow'       => 0.00, // Sub-card: Buyer Locked
         ];
 
-        // 1. Bank Pool (Real Money)
+        // 1. Bank Pool (Real Money belonging to the platform)
         $metrics['total_real'] = (float) $wpdb->get_var( 
-            "SELECT SUM(amount) FROM $table WHERE money_nature = 'real'" 
+            "SELECT SUM(amount) FROM $table WHERE entity_type = 'admin' AND money_nature = 'real'" 
         );
 
         // --- SUB-CARDS (Always Absolute for Display) ---
