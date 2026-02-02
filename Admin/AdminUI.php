@@ -72,27 +72,41 @@ class AdminUI {
         // Handle Form Submission
         if ( isset( $_POST['zh_save_rule'] ) && check_admin_referer( 'zh_save_rule_nonce' ) ) {
             $condition = sanitize_text_field( $_POST['condition_type'] );
-            $data = [
-                'name'              => sanitize_text_field( $_POST['rule_name'] ),
-                'condition_type'    => $condition,
-                'transaction_type'  => sanitize_text_field( $_POST['transaction_type'] ),
-                'from_entity_type'  => sanitize_text_field( $_POST['from_entity'] ),
-                'to_entity_type'    => sanitize_text_field( $_POST['to_entity'] ),
-                'impact_slug'       => sanitize_text_field( $_POST['impact'] ),
-                'amount_type'       => sanitize_text_field( $_POST['amount_type'] ),
-                'amount_value'      => floatval( $_POST['amount_value'] ),
-                'lock_type'         => sanitize_text_field( $_POST['lock_type'] ),
-                'status'            => 'active',
-            ];
+            $from_entity = sanitize_text_field( $_POST['from_entity'] );
+            $to_entity = sanitize_text_field( $_POST['to_entity'] );
 
-            if ( $condition === 'recurring' ) {
-                $data['recurrence_type'] = sanitize_text_field( $_POST['recurrence_type'] );
-                $data['billing_day']     = intval( $_POST['billing_day'] );
-                $data['billing_month']   = ! empty( $_POST['billing_month'] ) ? intval( $_POST['billing_month'] ) : NULL;
+            // SERVER-SIDE VALIDATION: Safety Guards
+            $allowed_from = [ 'vendor', 'buyer' ];
+            $allowed_to   = [ 'admin', 'platform' ];
+
+            if ( ! in_array( $from_entity, $allowed_from ) || ! in_array( $to_entity, $allowed_to ) ) {
+                echo '<div class="error"><p>Invalid Transaction Flow. Only Vendor/Buyer → Admin/Platform flows are allowed for Charge Rules.</p></div>';
+            } else {
+                $data = [
+                    'name'              => sanitize_text_field( $_POST['rule_name'] ),
+                    'condition_type'    => $condition,
+                    'transaction_type'  => sanitize_text_field( $_POST['transaction_type'] ),
+                    'from_entity_type'  => $from_entity,
+                    'to_entity_type'    => $to_entity,
+                    'impact_slug'       => sanitize_text_field( $_POST['impact'] ),
+                    'amount_type'       => sanitize_text_field( $_POST['amount_type'] ),
+                    'amount_value'      => floatval( $_POST['amount_value'] ),
+                    'lock_type'         => sanitize_text_field( $_POST['lock_type'] ),
+                    'split_enabled'     => isset( $_POST['split_enabled'] ) ? 1 : 0,
+                    'admin_profit_pct'  => ! empty( $_POST['admin_profit_pct'] ) ? floatval( $_POST['admin_profit_pct'] ) : NULL,
+                    'external_cost_pct' => ! empty( $_POST['external_cost_pct'] ) ? floatval( $_POST['external_cost_pct'] ) : NULL,
+                    'status'            => 'active',
+                ];
+
+                if ( $condition === 'recurring' ) {
+                    $data['recurrence_type'] = sanitize_text_field( $_POST['recurrence_type'] );
+                    $data['billing_day']     = intval( $_POST['billing_day'] );
+                    $data['billing_month']   = ! empty( $_POST['billing_month'] ) ? intval( $_POST['billing_month'] ) : NULL;
+                }
+
+                $wpdb->insert( $table_name, $data );
+                echo '<div class="updated"><p>Rule created successfully.</p></div>';
             }
-
-            $wpdb->insert( $table_name, $data );
-            echo '<div class="updated"><p>Rule created successfully.</p></div>';
         }
 
         // Handle Status Toggle
@@ -118,6 +132,7 @@ class AdminUI {
                 .zh-form-container { display: none; background: #fff; padding: 30px; border: 1px solid #ccd0d4; border-radius: 8px; margin-top: 20px; max-width: 900px; }
                 .zh-tooltip { color: #2271b1; cursor: help; font-style: italic; font-size: 12px; display: block; margin-top: 4px; }
                 .zh-required { color: #d63638; }
+                .zh-split-config { background: #f9f9f9; padding: 15px; border: 1px dashed #ccd0d4; margin-top: 10px; border-radius: 4px; }
             </style>
 
             <h1><?php _e( 'Charge Rules Management', 'zerohold-finance' ); ?></h1>
@@ -126,11 +141,11 @@ class AdminUI {
             <table class="wp-list-table widefat fixed striped" style="margin-top: 20px;">
                 <thead>
                     <tr>
-                        <th>Rule Name</th>
+                        <th style="width: 25%;">Rule Name</th>
                         <th>Condition</th>
                         <th>Flow</th>
                         <th>Impact</th>
-                        <th>Value</th>
+                        <th>Value / Split</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -145,7 +160,14 @@ class AdminUI {
                             </td>
                             <td><?php echo esc_html(ucfirst($r->from_entity_type) . ' → ' . ucfirst($r->to_entity_type)); ?></td>
                             <td><code><?php echo esc_html($r->impact_slug); ?></code></td>
-                            <td><?php echo $r->amount_type === 'percentage' ? $r->amount_value.'%' : wc_price($r->amount_value); ?></td>
+                            <td>
+                                <?php echo $r->amount_type === 'percentage' ? $r->amount_value.'%' : wc_price($r->amount_value); ?>
+                                <?php if ( $r->split_enabled ) : ?>
+                                    <div style="font-size: 11px; color: #666; margin-top: 5px;">
+                                        Split: <?php echo (float)$r->admin_profit_pct; ?>% Profit / <?php echo (float)$r->external_cost_pct; ?>% Cost
+                                    </div>
+                                <?php endif; ?>
+                            </td>
                             <td><span class="dashicons dashicons-<?php echo $r->status==='active'?'yes':'no'; ?>" style="color:<?php echo $r->status==='active'?'green':'red'; ?>"></span></td>
                             <td><a href="<?php echo add_query_arg(['action'=>'toggle', 'rule_id'=>$r->id]); ?>" class="button button-small"><?php echo $r->status==='active'?'Disable':'Enable'; ?></a></td>
                         </tr>
@@ -233,7 +255,7 @@ class AdminUI {
                                 <option value="admin">Admin</option>
                                 <option value="platform">Platform</option>
                             </select>
-                            <span class="zh-tooltip">Who pays and who receives. (Debit Vendor -> To Admin = standard fee)</span>
+                            <span class="zh-tooltip">Who pays and who receives. Only flows to Admin/Platform are allowed for Charges.</span>
                         </td>
                     </tr>
 
@@ -252,7 +274,7 @@ class AdminUI {
                                 <option value="fixed">Fixed Amount (₹)</option>
                                 <option value="percentage">Percentage (%)</option>
                             </select>
-                            <span class="zh-tooltip">Fixed = flat fee. Percentage = % of order subtotal.</span>
+                            <span class="zh-tooltip" id="zh_amount_tooltip">Fixed = flat fee.</span>
                         </td>
                     </tr>
 
@@ -261,6 +283,28 @@ class AdminUI {
                         <td>
                             <input type="number" step="0.01" name="amount_value" class="small-text" required>
                             <span class="zh-tooltip">Example: 2 for ₹2 or 1 for 1%</span>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th><label>Optional Cost Split</label></th>
+                        <td>
+                            <label><input type="checkbox" name="split_enabled" id="zh_split_toggle"> This charge has external cost</label>
+                            <div id="zh_split_fields" class="zh-split-config" style="display:none;">
+                                <div style="display: flex; gap: 20px;">
+                                    <div>
+                                        <label>Admin Profit %</label><br/>
+                                        <input type="number" step="0.01" name="admin_profit_pct" class="small-text" value="40">
+                                        <span class="zh-tooltip">% platform keeps</span>
+                                    </div>
+                                    <div>
+                                        <label>External Cost %</label><br/>
+                                        <input type="number" step="0.01" name="external_cost_pct" class="small-text" value="60">
+                                        <span class="zh-tooltip">% paid to provider</span>
+                                    </div>
+                                </div>
+                                <span class="zh-tooltip" style="margin-top: 10px; color: #666;">Use this when part of the charge is paid to an external service (SMS, courier, API). Percentages must total 100%.</span>
+                            </div>
                         </td>
                     </tr>
 
@@ -319,6 +363,19 @@ class AdminUI {
 
                 document.getElementById('zh_recurrence_select').addEventListener('change', function() {
                     document.getElementById('zh_billing_month_wrap').style.display = (this.value === 'yearly' ? 'inline' : 'none');
+                });
+
+                document.getElementById('zh_amount_type').addEventListener('change', function() {
+                    const tooltip = document.getElementById('zh_amount_tooltip');
+                    if (this.value === 'percentage') {
+                        tooltip.innerText = 'Percentage is calculated on order subtotal (excluding tax & shipping).';
+                    } else {
+                        tooltip.innerText = 'Fixed = flat fee.';
+                    }
+                });
+
+                document.getElementById('zh_split_toggle').addEventListener('change', function() {
+                    document.getElementById('zh_split_fields').style.display = this.checked ? 'block' : 'none';
                 });
 
                 document.getElementById('zh_cancel').addEventListener('click', function(e) {
