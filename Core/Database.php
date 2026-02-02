@@ -147,12 +147,24 @@ class Database {
         $wpdb->query( "DROP TRIGGER IF EXISTS {$wpdb->prefix}zh_prevent_ledger_delete" );
 
         // BEFORE UPDATE Trigger
+        // We allow updates ONLY to the 'unlock_at' column to support delivery-based maturity.
         $sql_update = "CREATE TRIGGER {$wpdb->prefix}zh_prevent_ledger_update
             BEFORE UPDATE ON $table
             FOR EACH ROW
             BEGIN
-                SIGNAL SQLSTATE '45000'
-                SET MESSAGE_TEXT = 'ZeroHold Finance Ledger is IMMUTABLE. Updates are forbidden.';
+                IF (OLD.entry_group_id != NEW.entry_group_id OR 
+                    OLD.entity_type != NEW.entity_type OR 
+                    OLD.entity_id != NEW.entity_id OR 
+                    OLD.amount != NEW.amount OR 
+                    OLD.category != NEW.category OR 
+                    OLD.impact != NEW.impact OR 
+                    OLD.money_nature != NEW.money_nature OR
+                    OLD.lock_type != NEW.lock_type OR
+                    OLD.reference_type != NEW.reference_type OR
+                    OLD.reference_id != NEW.reference_id) THEN
+                    SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'ZeroHold Finance Ledger is IMMUTABLE. Only maturity dates (unlock_at) may be adjusted.';
+                END IF;
             END;";
             
         // BEFORE DELETE Trigger

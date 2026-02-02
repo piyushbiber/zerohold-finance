@@ -9,6 +9,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class LedgerService {
 
     /**
+     * Prevent infinite loops during wallet sync
+     */
+    public static $is_syncing = false;
+
+    /**
      * Record a transaction in the ledger.
      * Enforces double-entry bookkeeping.
      *
@@ -17,7 +22,7 @@ class LedgerService {
      * @param float $amount Amount (positive).
      * @param string $impact Taxonomy slug.
      * @param string $reference_type
-     * @param int $reference_id
+     * @param int    $reference_id
      * @param string $lock_type
      * @param string $unlock_at (Y-m-d H:i:s)
      * @param string $reason Audit note
@@ -85,6 +90,18 @@ class LedgerService {
             }
 
             $wpdb->query( 'COMMIT' );
+
+            // --- Post-Commit Hooks ---
+            do_action( 'zh_finance_ledger_recorded', $group_id, [
+                'from'           => $from_entity,
+                'to'             => $to_entity,
+                'amount'         => $amount,
+                'impact'         => $impact,
+                'reference_type' => $reference_type,
+                'reference_id'   => $reference_id,
+                'reason'         => $reason
+            ]);
+
             return $group_id;
 
         } catch ( \Exception $e ) {

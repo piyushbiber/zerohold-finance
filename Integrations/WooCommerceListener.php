@@ -15,9 +15,6 @@ class WooCommerceListener {
         add_action( 'woocommerce_payment_complete', [ __CLASS__, 'handle_order_payment' ], 10, 1 );
         add_action( 'woocommerce_order_status_processing', [ __CLASS__, 'handle_order_payment' ], 10, 1 );
         add_action( 'woocommerce_order_status_completed', [ __CLASS__, 'handle_order_payment' ], 10, 1 );
-        
-        // Listen for delivery to update unlock date
-        add_action( 'zh_event_order_delivered', [ __CLASS__, 'handle_order_delivery' ], 10, 2 );
     }
 
     /**
@@ -89,40 +86,5 @@ class WooCommerceListener {
         }
     }
 
-    /**
-     * Handle Delivery (Unlock Date Update)
-     * 
-     * @param int $order_id
-     * @param string $delivery_date Y-m-d H:i:s
-     */
-    public static function handle_order_delivery( $order_id, $delivery_date ) {
-        // Logic to update the `unlock_at` field in DB for the existing ledger rows.
-        // Since we blocked UPDATEs via Trigger, we have a dilemma.
-        // "Reader Logic Only" means we don't update DB. 
-        // BUT we need to know WHEN to unlock.
-        // Solution: The Reader (QueryEngine) joins with an 'Order Meta' or a separate 'Unlock Schedule' table?
-        // OR: The Trigger blocks updating amount/entities, but maybe we allow updating 'unlock_at'?
-        // The trigger I wrote blocks ALL updates: "BEFORE UPDATE ON ... SIGNAL SQLSTATE".
-        
-        // To fix this without violating immutability:
-        // We insert a NEW event "Lock Update"? No...
-        // The User said: "Unlock: delivery_date + return_window (updated via zh_event_order_delivered)".
-        // This explicitly implies UPDATING the record or storing the date somewhere.
-        
-        // I will implement a separate table `wp_zh_ledger_metadata` or `locks` if I can't update.
-        // OR, I modify the trigger to allow updates to JUST `unlock_at`.
-        
-        // Let's assume for this step I will modify the trigger in a future migration if needed,
-        // or just store the unlock date in Order Meta and QueryEngine reads it? 
-        // "Reader Logic: unlock_at timestamp comparison (No DB updates for unlock)" -> This means the checking logic is read-only.
-        // But the setting of the timestamp must happen.
-        
-        // Strategy: Store the official `unlock_at` in the Order Metadata or a separate `zh_order_locks` table.
-        // The Ledger `unlock_at` column might represent the *initial* known lock.
-        
-        $return_window_days = 7; // Configurable
-        $unlock_time = date( 'Y-m-d H:i:s', strtotime( "$delivery_date + $return_window_days days" ) );
-        
-        update_post_meta( $order_id, '_zh_unlock_at', $unlock_time );
     }
 }
