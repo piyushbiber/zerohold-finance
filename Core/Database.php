@@ -18,7 +18,8 @@ class Database {
             self::get_schema_wallet_events( $charset_collate ),
             self::get_schema_vendor_statements( $charset_collate ),
             self::get_schema_statement_attachment( $charset_collate ),
-            self::get_schema_charge_rules( $charset_collate )
+            self::get_schema_charge_rules( $charset_collate ),
+            self::get_schema_recurring_log( $charset_collate )
         ];
 
         foreach ( $tables as $sql ) {
@@ -116,6 +117,22 @@ class Database {
             created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
             PRIMARY KEY (id)
+        ) $charset_collate;";
+    }
+
+    private static function get_schema_recurring_log( $charset_collate ) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'zh_recurring_log';
+
+        return "CREATE TABLE $table_name (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            rule_id bigint(20) unsigned NOT NULL,
+            entity_type varchar(20) NOT NULL,
+            entity_id bigint(20) unsigned NOT NULL,
+            billing_period varchar(20) NOT NULL, -- e.g. '2026-02' or '2026'
+            charged_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY unique_charge (rule_id, entity_id, billing_period)
         ) $charset_collate;";
     }
 
