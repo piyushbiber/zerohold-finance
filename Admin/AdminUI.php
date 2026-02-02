@@ -95,6 +95,7 @@ class AdminUI {
                 $data = [
                     'name'              => sanitize_text_field( $_POST['rule_name'] ),
                     'condition_type'    => $condition,
+                    'trigger_event'     => ( $condition === 'order' ) ? 'zh_event_order_completed' : NULL,
                     'transaction_type'  => sanitize_text_field( $_POST['transaction_type'] ),
                     'from_entity_type'  => $from_entity,
                     'to_entity_type'    => $to_entity,
