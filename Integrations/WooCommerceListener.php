@@ -85,6 +85,5 @@ class WooCommerceListener {
             $order->save();
         }
     }
-
-    }
 }
+
