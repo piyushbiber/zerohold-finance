@@ -187,53 +187,108 @@ class AdminUI {
         ?>
         <div class="wrap zh-finance-admin">
             <style>
-                .zh-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; }
-                .zh-stat-card { background: #fff; padding: 25px; border-radius: 8px; border: 1px solid #ccd0d4; box-shadow: 0 2px 4px rgba(0,0,-0.05); }
-                .zh-stat-label { font-size: 14px; color: #646970; font-weight: 600; text-transform: uppercase; margin-bottom: 10px; display: block; }
-                .zh-stat-value { font-size: 32px; font-weight: 700; color: #1d2327; }
-                .zh-section { background: #fff; padding: 25px; border-radius: 8px; border: 1px solid #ccd0d4; margin-top: 30px; }
-                .zh-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-                .zh-badge-real { background: #e7f5ec; color: #1a7f37; }
-                .zh-badge-claim { background: #f0f6fa; color: #0969da; }
+                .zh-dashboard-grid { margin-bottom: 40px; }
+                .zh-grid-row { display: grid; gap: 20px; margin-bottom: 25px; }
+                .zh-row-primary { grid-template-columns: repeat(4, 1fr); }
+                .zh-row-sub { grid-template-columns: repeat(4, 1fr); }
+                
+                .zh-stat-card { 
+                    background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ccd0d4; position: relative;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: transform 0.2s;
+                }
+                .zh-stat-card:hover { transform: translateY(-2px); border-color: #c3c4c7; }
+                
+                .zh-card-primary { border-top: 4px solid #2271b1; }
+                .zh-card-profit { border-top: 4px solid #1a7f37; background: #fafffb; }
+                .zh-card-liability { border-top: 4px solid #d63638; }
+                .zh-card-escrow { border-top: 4px solid #72aee6; }
+                
+                .zh-stat-label { font-size: 13px; font-weight: 600; color: #50575e; display: flex; align-items: center; gap: 6px; }
+                .zh-stat-value { font-size: 26px; font-weight: 700; color: #1d2327; margin: 12px 0 4px; }
+                .zh-stat-desc { font-size: 12px; color: #646970; }
+                
+                .zh-sub-card { background: #f6f7f7; border: 1px solid #dcdcde; padding: 15px; border-radius: 6px; }
+                .zh-sub-card .zh-stat-value { font-size: 20px; margin: 8px 0 2px; }
+                
+                .zh-row-title { font-size: 14px; font-weight: 700; color: #1d2327; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 15px; display: block; border-bottom: 1px solid #dcdcde; padding-bottom: 8px; }
+                
+                /* Tooltip logic */
+                .zh-info-icon { color: #2271b1; cursor: help; font-size: 16px; width: 16px; height: 16px; }
+                .wp-admin .zh-stat-card [title] { text-decoration: none; border-bottom: none; }
             </style>
 
             <h1><?php _e( 'ZeroHold Finance - Central Bank', 'zerohold-finance' ); ?></h1>
+            <p><?php _e( 'Real-time financial health of the platform derived from the immutable ledger.', 'zerohold-finance' ); ?></p>
             
-            <div class="zh-stats-grid">
-                <!-- Total Real Balance -->
-                <div class="zh-stat-card">
-                    <span class="zh-stat-label"><?php _e( 'Bank Pool (Real Money)', 'zerohold-finance' ); ?> <span class="zh-badge zh-badge-real">CASH</span></span>
-                    <div class="zh-stat-value"><?php echo wc_price($metrics['total_real']); ?></div>
-                    <p class="description"><?php _e( 'Total liquidity actually held in bank/gateways.', 'zerohold-finance' ); ?></p>
+            <div class="zh-dashboard-grid">
+                
+                <!-- ROW 1: PRIMARY CARDS -->
+                <span class="zh-row-title"><?php _e( 'PRIMARY LIQUIDITY & PERFORMANCE', 'zerohold-finance' ); ?></span>
+                <div class="zh-grid-row zh-row-primary">
+                    <!-- Bank Pool -->
+                    <div class="zh-stat-card zh-card-primary" title="Actual cash held in bank accounts and payment gateways.">
+                        <span class="zh-stat-label">🏦 <?php _e( 'Bank Pool (Real Money)', 'zerohold-finance' ); ?> <span class="dashicons dashicons-editor-help zh-info-icon"></span></span>
+                        <div class="zh-stat-value"><?php echo wc_price($metrics['total_real']); ?></div>
+                        <span class="zh-stat-desc"><?php _e( 'Total platform liquidity', 'zerohold-finance' ); ?></span>
+                    </div>
+
+                    <!-- Platform Liabilities -->
+                    <div class="zh-stat-card zh-card-liability" title="Total money owed by the platform to vendors and buyers.">
+                        <span class="zh-stat-label">📌 <?php _e( 'Platform Liabilities', 'zerohold-finance' ); ?> <span class="dashicons dashicons-editor-help zh-info-icon"></span></span>
+                        <div class="zh-stat-value"><?php echo wc_price(abs($metrics['total_liabilities'])); ?></div>
+                        <span class="zh-stat-desc"><?php _e( 'Total owed to Others', 'zerohold-finance' ); ?></span>
+                    </div>
+
+                    <!-- Escrow -->
+                    <div class="zh-stat-card zh-card-escrow" title="Portion of platform liabilities temporarily locked due to return or payment hold.">
+                        <span class="zh-stat-label">🔒 <?php _e( 'Escrow (Locked Funds)', 'zerohold-finance' ); ?> <span class="dashicons dashicons-editor-help zh-info-icon"></span></span>
+                        <div class="zh-stat-value"><?php echo wc_price($metrics['total_escrow']); ?></div>
+                        <span class="zh-stat-desc"><?php _e( 'Total currently in-escrow', 'zerohold-finance' ); ?></span>
+                    </div>
+
+                    <!-- Net Profit -->
+                    <div class="zh-stat-card zh-card-profit" title="Net earnings retained by the platform after liabilities.">
+                        <span class="zh-stat-label">💰 <?php _e( 'Platform Net Profit', 'zerohold-finance' ); ?> <span class="dashicons dashicons-editor-help zh-info-icon"></span></span>
+                        <div class="zh-stat-value" style="color:#1a7f37;"><?php echo wc_price($metrics['platform_profit']); ?></div>
+                        <span class="zh-stat-desc"><?php _e( 'Total platform equity', 'zerohold-finance' ); ?></span>
+                    </div>
                 </div>
 
-                <!-- Vendor Liabilities -->
-                <div class="zh-stat-card">
-                    <span class="zh-stat-label"><?php _e( 'Vendor Liabilities', 'zerohold-finance' ); ?> <span class="zh-badge zh-badge-claim">OWED</span></span>
-                    <div class="zh-stat-value" style="color:#d63638;"><?php echo wc_price(abs($metrics['total_claims'])); ?></div>
-                    <p class="description"><?php _e( 'Total funds owed to Vendors (Withdrawable + Locked).', 'zerohold-finance' ); ?></p>
+                <!-- ROW 2: LIABILITY BREAKDOWN -->
+                <span class="zh-row-title"><?php _e( 'LIABILITY BREAKDOWN', 'zerohold-finance' ); ?></span>
+                <div class="zh-grid-row zh-row-sub">
+                    <div class="zh-sub-card" title="Funds owed to vendors (withdrawable + locked).">
+                        <span class="zh-stat-label">🧾 <?php _e( 'Vendor Liabilities', 'zerohold-finance' ); ?></span>
+                        <div class="zh-stat-value"><?php echo wc_price($metrics['vendor_liabilities']); ?></div>
+                    </div>
+                    <div class="zh-sub-card" title="Buyer wallet balances, refunds, and credits owed.">
+                        <span class="zh-stat-label">👤 <?php _e( 'Buyer Liabilities', 'zerohold-finance' ); ?></span>
+                        <div class="zh-stat-value"><?php echo wc_price($metrics['buyer_liabilities']); ?></div>
+                    </div>
+                    <div></div> <!-- Spacer -->
+                    <div></div> <!-- Spacer -->
                 </div>
 
-                <!-- Locked Funds -->
-                <div class="zh-stat-card">
-                    <span class="zh-stat-label"><?php _e( 'Escrow (Locked Assets)', 'zerohold-finance' ); ?></span>
-                    <div class="zh-stat-value"><?php echo wc_price($metrics['total_locked']); ?></div>
-                    <p class="description"><?php _e( 'Funds held under return policy/payment hold.', 'zerohold-finance' ); ?></p>
+                <!-- ROW 3: ESCROW BREAKDOWN -->
+                <span class="zh-row-title"><?php _e( 'ESCROW (LOCK) BREAKDOWN', 'zerohold-finance' ); ?></span>
+                <div class="zh-grid-row zh-row-sub">
+                    <div class="zh-sub-card" title="Vendor funds locked under return policy.">
+                        <span class="zh-stat-label">⏳ <?php _e( 'Vendor Escrow', 'zerohold-finance' ); ?></span>
+                        <div class="zh-stat-value"><?php echo wc_price($metrics['vendor_escrow']); ?></div>
+                    </div>
+                    <div class="zh-sub-card" title="Buyer funds locked due to refunds or disputes.">
+                        <span class="zh-stat-label">⏳ <?php _e( 'Buyer Escrow', 'zerohold-finance' ); ?></span>
+                        <div class="zh-stat-value"><?php echo wc_price($metrics['buyer_escrow']); ?></div>
+                    </div>
+                    <div></div> <!-- Spacer -->
+                    <div></div> <!-- Spacer -->
                 </div>
 
-                <!-- Platform Profit -->
-                <div class="zh-stat-card" style="border-left: 5px solid #1a7f37; background: #f8fff9;">
-                    <span class="zh-stat-label" style="color: #1a7f37;"><?php _e( 'Platform Net Profit (Retained)', 'zerohold-finance' ); ?></span>
-                    <div class="zh-stat-value" style="color: #1a7f37;"><?php echo wc_price($metrics['platform_profit']); ?></div>
-                    <p class="description"><?php _e( 'Pure retained earnings (Commissions + Fees - Liabilities).', 'zerohold-finance' ); ?></p>
-                </div>
             </div>
 
             <div class="zh-section">
-                <h2><?php _e( 'Profit & Loss Breakdown (by Impact)', 'zerohold-finance' ); ?></h2>
-                <p><?php _e( 'Net balance of the Platform for each revenue stream.', 'zerohold-finance' ); ?></p>
-                
-                <table class="wp-list-table widefat fixed striped" style="margin-top: 20px;">
+                <h2 title="Net platform profit or loss grouped by impact type."><?php _e( 'Profit & Loss Breakdown (by Impact)', 'zerohold-finance' ); ?> <span class="dashicons dashicons-editor-help zh-info-icon" style="font-size: 18px;"></span></h2>
+                <table class="wp-list-table widefat fixed striped" style="margin-top: 15px;">
                     <thead>
                         <tr>
                             <th><?php _e( 'Impact Type', 'zerohold-finance' ); ?></th>
@@ -247,7 +302,6 @@ class AdminUI {
                                 <td><code><?php echo esc_html($impact); ?></code></td>
                                 <td>
                                     <?php 
-                                        // Simple mapping for common impacts
                                         $desc = [
                                             'earnings' => 'Order Commissions & Sales Share',
                                             'shipping' => 'Shipping Cost Reconciliation',
@@ -267,10 +321,6 @@ class AdminUI {
                     </tbody>
                 </table>
             </div>
-
-            <p style="margin-top: 30px; color: #666; font-style: italic;">
-                <?php _e( 'Note: These figures are generated directly from the immutable ledger in real-time.', 'zerohold-finance' ); ?>
-            </p>
 
             <!-- Dangerous Area: System Reset (Only shown if constant is set) -->
             <?php if ( defined('ZH_FINANCE_ALLOW_RESET') && ZH_FINANCE_ALLOW_RESET === true ) : ?>

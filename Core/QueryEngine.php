@@ -110,33 +110,64 @@ class QueryEngine {
         $table = $wpdb->prefix . 'zh_wallet_events';
 
         $metrics = [
-            'total_real'      => 0.00, // Total actual money held (Bank Balance)
-            'total_claims'    => 0.00, // Total liabilities (IOUs to vendors)
-            'total_locked'    => 0.00, // Escrow
-            'platform_profit' => 0.00, // Retained Platform Profit
+            'total_real'         => 0.00, // Bank Pool
+            'total_liabilities'  => 0.00, // Total Owed (Vendor + Buyer)
+            'total_escrow'       => 0.00, // Total Locked
+            'platform_profit'    => 0.00, // Retained Profit
+            'vendor_liabilities' => 0.00, // Sub-card: Vendor Owed
+            'buyer_liabilities'  => 0.00, // Sub-card: Buyer Owed
+            'vendor_escrow'      => 0.00, // Sub-card: Vendor Locked
+            'buyer_escrow'       => 0.00, // Sub-card: Buyer Locked
         ];
 
-        // 1. Total Real Money (The "Bank")
+        // 1. Bank Pool (Real Money)
         $metrics['total_real'] = (float) $wpdb->get_var( 
             "SELECT SUM(amount) FROM $table WHERE money_nature = 'real'" 
         );
 
-        // 2. Total Claims (Vendor/Buyer Liabilities)
-        $metrics['total_claims'] = (float) $wpdb->get_var(
+        // 2. Platform Liabilities (Total Claims Owed)
+        $metrics['total_liabilities'] = (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table WHERE money_nature = 'claim' AND entity_type IN ('vendor', 'buyer')"
         );
 
-        // 3. Total Locked (Funds not yet withdrawable)
-        $metrics['total_locked'] = (float) $wpdb->get_var(
+        // 3. Escrow (Total Locked)
+        $metrics['total_escrow'] = (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table 
              WHERE lock_type != 'none' 
              AND (unlock_at IS NULL OR unlock_at > NOW())"
         );
 
-        // 4. Platform Net Profit (Retained Equity)
-        // This is the net balance of the 'admin' entity in the ledger
+        // 4. Platform Net Profit
         $metrics['platform_profit'] = (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table WHERE entity_type = 'admin'"
+        );
+
+        // --- SUB-CARDS ---
+
+        // Vendor Liabilities
+        $metrics['vendor_liabilities'] = (float) $wpdb->get_var(
+            "SELECT SUM(amount) FROM $table WHERE entity_type = 'vendor' AND money_nature = 'claim'"
+        );
+
+        // Buyer Liabilities
+        $metrics['buyer_liabilities'] = (float) $wpdb->get_var(
+            "SELECT SUM(amount) FROM $table WHERE entity_type = 'buyer' AND money_nature = 'claim'"
+        );
+
+        // Vendor Escrow
+        $metrics['vendor_escrow'] = (float) $wpdb->get_var(
+            "SELECT SUM(amount) FROM $table 
+             WHERE entity_type = 'vendor' 
+             AND lock_type != 'none' 
+             AND (unlock_at IS NULL OR unlock_at > NOW())"
+        );
+
+        // Buyer Escrow
+        $metrics['buyer_escrow'] = (float) $wpdb->get_var(
+            "SELECT SUM(amount) FROM $table 
+             WHERE entity_type = 'buyer' 
+             AND lock_type != 'none' 
+             AND (unlock_at IS NULL OR unlock_at > NOW())"
         );
 
         return $metrics;
