@@ -17,7 +17,107 @@ class AdminUI {
      * Initialize Admin UI
      */
     public static function init() {
+        add_action( 'admin_init', [ __CLASS__, 'handle_actions' ] );
         add_action( 'admin_menu', [ __CLASS__, 'register_menus' ] );
+    }
+
+    /**
+     * Handle Admin Actions (POST and GET Toggles)
+     */
+    public static function handle_actions() {
+        global $wpdb;
+        $table_rules = $wpdb->prefix . 'zh_charge_rules';
+
+        // 1. Handle Status Toggle
+        if ( isset( $_GET['action'] ) && $_GET['action'] === 'toggle' && isset( $_GET['rule_id'] ) ) {
+            check_admin_referer( 'zh_toggle_rule_' . $_GET['rule_id'] );
+            $rule_id = intval( $_GET['rule_id'] );
+            $current = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM $table_rules WHERE id = %d", $rule_id ) );
+            $wpdb->update( $table_rules, [ 'status' => ( $current === 'active' ? 'inactive' : 'active' ) ], [ 'id' => $rule_id ] );
+            
+            wp_safe_redirect( remove_query_arg( [ 'action', 'rule_id', '_wpnonce' ] ) );
+            exit;
+        }
+
+        // 2. Handle Save Charge Rule
+        if ( isset( $_POST['zh_save_rule'] ) && check_admin_referer( 'zh_save_rule_nonce' ) ) {
+            $condition = sanitize_text_field( $_POST['condition_type'] );
+            $from_entity = sanitize_text_field( $_POST['from_entity'] );
+            $to_entity = sanitize_text_field( $_POST['to_entity'] );
+
+            // Validation
+            $allowed_from = [ 'vendor', 'buyer' ];
+            $allowed_to   = [ 'admin', 'platform' ];
+
+            if ( in_array( $from_entity, $allowed_from ) && in_array( $to_entity, $allowed_to ) ) {
+                $data = [
+                    'name'              => sanitize_text_field( $_POST['rule_name'] ),
+                    'condition_type'    => $condition,
+                    'trigger_event'     => ( $condition === 'order' ) ? 'zh_event_order_completed' : NULL,
+                    'transaction_type'  => sanitize_text_field( $_POST['transaction_type'] ),
+                    'from_entity_type'  => $from_entity,
+                    'to_entity_type'    => $to_entity,
+                    'impact_slug'       => sanitize_text_field( $_POST['impact'] ),
+                    'amount_type'       => sanitize_text_field( $_POST['amount_type'] ),
+                    'amount_value'      => floatval( $_POST['amount_value'] ),
+                    'lock_type'         => sanitize_text_field( $_POST['lock_type'] ),
+                    'split_enabled'     => isset( $_POST['split_enabled'] ) ? 1 : 0,
+                    'admin_profit_pct'  => ! empty( $_POST['admin_profit_pct'] ) ? floatval( $_POST['admin_profit_pct'] ) : NULL,
+                    'external_cost_pct' => ! empty( $_POST['external_cost_pct'] ) ? floatval( $_POST['external_cost_pct'] ) : NULL,
+                    'status'            => 'active',
+                ];
+
+                if ( $condition === 'recurring' ) {
+                    $data['recurrence_type'] = sanitize_text_field( $_POST['recurrence_type'] );
+                    $data['billing_day']     = intval( $_POST['billing_day'] );
+                    $data['billing_month']   = ! empty( $_POST['billing_month'] ) ? intval( $_POST['billing_month'] ) : NULL;
+                }
+
+                $wpdb->insert( $table_rules, $data );
+                wp_safe_redirect( add_query_arg( 'zh_msg', 'rule_saved' ) );
+                exit;
+            }
+        }
+
+        // 3. Handle Manual Transaction
+        if ( isset( $_POST['zh_apply_manual'] ) && check_admin_referer( 'zh_manual_trans_nonce' ) ) {
+            $type        = sanitize_text_field( $_POST['trans_type'] );
+            $entity_type = sanitize_text_field( $_POST['entity_type'] );
+            $scope       = sanitize_text_field( $_POST['target_scope'] );
+            $impact      = sanitize_text_field( $_POST['impact'] );
+            $amount      = floatval( $_POST['amount'] );
+            $reason      = sanitize_textarea_field( $_POST['reason'] );
+            $lock_type   = sanitize_text_field( $_POST['lock_type'] );
+            $admin_id    = get_current_user_id();
+
+            if ( ! empty( $reason ) ) {
+                $targets = [];
+                if ( $scope === 'single' ) {
+                    $targets[] = intval( $_POST['target_user_id'] );
+                } else {
+                    $targets = get_users( [ 'role' => 'seller', 'fields' => 'ID' ] );
+                }
+
+                $success_count = 0;
+                foreach ( $targets as $user_id ) {
+                    if ( $type === 'debit' ) {
+                        $from = [ 'type' => $entity_type, 'id' => $user_id, 'nature' => 'claim' ];
+                        $to   = [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ];
+                    } else {
+                        $from = [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ];
+                        $to   = [ 'type' => $entity_type, 'id' => $user_id, 'nature' => 'claim' ];
+                    }
+
+                    $res = \ZeroHold\Finance\Core\LedgerService::record(
+                        $from, $to, $amount, $impact, 'manual', 0, $lock_type, null, $reason, $admin_id
+                    );
+                    if ( $res ) $success_count++;
+                }
+
+                wp_safe_redirect( add_query_arg( [ 'zh_msg' => 'trans_applied', 'count' => $success_count ] ) );
+                exit;
+            }
+        }
     }
 
     /**
@@ -79,55 +179,13 @@ class AdminUI {
         global $wpdb;
         $table_name = $wpdb->prefix . 'zh_charge_rules';
         
-        // Handle Form Submission
-        if ( isset( $_POST['zh_save_rule'] ) && check_admin_referer( 'zh_save_rule_nonce' ) ) {
-            $condition = sanitize_text_field( $_POST['condition_type'] );
-            $from_entity = sanitize_text_field( $_POST['from_entity'] );
-            $to_entity = sanitize_text_field( $_POST['to_entity'] );
-
-            // SERVER-SIDE VALIDATION: Safety Guards
-            $allowed_from = [ 'vendor', 'buyer' ];
-            $allowed_to   = [ 'admin', 'platform' ];
-
-            if ( ! in_array( $from_entity, $allowed_from ) || ! in_array( $to_entity, $allowed_to ) ) {
-                echo '<div class="error"><p>Invalid Transaction Flow. Only Vendor/Buyer → Admin/Platform flows are allowed for Charge Rules.</p></div>';
-            } else {
-                $data = [
-                    'name'              => sanitize_text_field( $_POST['rule_name'] ),
-                    'condition_type'    => $condition,
-                    'trigger_event'     => ( $condition === 'order' ) ? 'zh_event_order_completed' : NULL,
-                    'transaction_type'  => sanitize_text_field( $_POST['transaction_type'] ),
-                    'from_entity_type'  => $from_entity,
-                    'to_entity_type'    => $to_entity,
-                    'impact_slug'       => sanitize_text_field( $_POST['impact'] ),
-                    'amount_type'       => sanitize_text_field( $_POST['amount_type'] ),
-                    'amount_value'      => floatval( $_POST['amount_value'] ),
-                    'lock_type'         => sanitize_text_field( $_POST['lock_type'] ),
-                    'split_enabled'     => isset( $_POST['split_enabled'] ) ? 1 : 0,
-                    'admin_profit_pct'  => ! empty( $_POST['admin_profit_pct'] ) ? floatval( $_POST['admin_profit_pct'] ) : NULL,
-                    'external_cost_pct' => ! empty( $_POST['external_cost_pct'] ) ? floatval( $_POST['external_cost_pct'] ) : NULL,
-                    'status'            => 'active',
-                ];
-
-                if ( $condition === 'recurring' ) {
-                    $data['recurrence_type'] = sanitize_text_field( $_POST['recurrence_type'] );
-                    $data['billing_day']     = intval( $_POST['billing_day'] );
-                    $data['billing_month']   = ! empty( $_POST['billing_month'] ) ? intval( $_POST['billing_month'] ) : NULL;
-                }
-
-                $wpdb->insert( $table_name, $data );
-                echo '<div class="updated"><p>Rule created successfully.</p></div>';
-            }
-        }
-
-        // Handle Status Toggle
-        if ( isset( $_GET['action'] ) && $_GET['action'] === 'toggle' && isset( $_GET['rule_id'] ) ) {
-            $rule_id = intval( $_GET['rule_id'] );
-            $current = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM $table_name WHERE id = %d", $rule_id ) );
-            $wpdb->update( $table_name, [ 'status' => ( $current === 'active' ? 'inactive' : 'active' ) ], [ 'id' => $rule_id ] );
+        // Success Messages
+        if ( isset( $_GET['zh_msg'] ) && $_GET['zh_msg'] === 'rule_saved' ) {
+            echo '<div class="updated"><p>Charge rule saved successfully.</p></div>';
         }
 
         $rules = $wpdb->get_results( "SELECT * FROM $table_name ORDER BY id DESC" );
+
         ?>
         <div class="wrap zh-finance-admin">
             <style>
@@ -180,7 +238,11 @@ class AdminUI {
                                 <?php endif; ?>
                             </td>
                             <td><span class="dashicons dashicons-<?php echo $r->status==='active'?'yes':'no'; ?>" style="color:<?php echo $r->status==='active'?'green':'red'; ?>"></span></td>
-                            <td><a href="<?php echo add_query_arg(['action'=>'toggle', 'rule_id'=>$r->id]); ?>" class="button button-small"><?php echo $r->status==='active'?'Disable':'Enable'; ?></a></td>
+                            <td>
+                                <a href="<?php echo wp_nonce_url( add_query_arg(['action'=>'toggle', 'rule_id'=>$r->id]), 'zh_toggle_rule_' . $r->id ); ?>" class="button button-small">
+                                    <?php echo $r->status==='active'?'Disable':'Enable'; ?>
+                                </a>
+                            </td>
                         </tr>
                     <?php endforeach; else: ?>
                         <tr><td colspan="7">No rules defined.</td></tr>
@@ -402,51 +464,10 @@ class AdminUI {
         global $wpdb;
         $table_events = $wpdb->prefix . 'zh_wallet_events';
         
-        // Handle Form Submission
-        if ( isset( $_POST['zh_apply_manual'] ) && check_admin_referer( 'zh_manual_trans_nonce' ) ) {
-            $type        = sanitize_text_field( $_POST['trans_type'] ); // debit/credit
-            $entity_type = sanitize_text_field( $_POST['entity_type'] ); // vendor/buyer
-            $scope       = sanitize_text_field( $_POST['target_scope'] ); // single/all
-            $impact      = sanitize_text_field( $_POST['impact'] );
-            $amount      = floatval( $_POST['amount'] );
-            $reason      = sanitize_textarea_field( $_POST['reason'] );
-            $lock_type   = sanitize_text_field( $_POST['lock_type'] );
-            $admin_id    = get_current_user_id();
-
-            if ( empty( $reason ) ) {
-                echo '<div class="error"><p>Audit Reason is mandatory for manual transactions.</p></div>';
-            } else {
-                $targets = [];
-                if ( $scope === 'single' ) {
-                    $targets[] = intval( $_POST['target_user_id'] );
-                } else {
-                    // Bulk Apply to all active vendors
-                    $vendors = get_users( [ 'role' => 'seller', 'fields' => 'ID' ] );
-                    $targets = $vendors;
-                }
-
-                $success_count = 0;
-                foreach ( $targets as $user_id ) {
-                    // Define entities based on debit/credit
-                    // If Debit Vendor -> To Admin
-                    // If Credit Vendor -> From Admin
-                    if ( $type === 'debit' ) {
-                        $from = [ 'type' => $entity_type, 'id' => $user_id, 'nature' => 'claim' ];
-                        $to   = [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ];
-                    } else {
-                        $from = [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ];
-                        $to   = [ 'type' => $entity_type, 'id' => $user_id, 'nature' => 'claim' ];
-                    }
-
-                    $res = \ZeroHold\Finance\Core\LedgerService::record(
-                        $from, $to, $amount, $impact, 'manual', 0, $lock_type, null, $reason, $admin_id
-                    );
-
-                    if ( $res ) $success_count++;
-                }
-
-                echo '<div class="updated"><p>Successfully applied ' . $success_count . ' transaction(s).</p></div>';
-            }
+        // Success Messages
+        if ( isset( $_GET['zh_msg'] ) && $_GET['zh_msg'] === 'trans_applied' ) {
+            $count = isset( $_GET['count'] ) ? intval( $_GET['count'] ) : 0;
+            echo '<div class="updated"><p>Successfully applied ' . $count . ' manual transaction(s).</p></div>';
         }
 
         // Fetch History (Target-perspective filter to avoid double rows)
