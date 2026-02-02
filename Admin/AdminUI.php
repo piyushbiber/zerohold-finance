@@ -220,6 +220,13 @@ class AdminUI {
                     <div class="zh-stat-value"><?php echo wc_price($metrics['total_locked']); ?></div>
                     <p class="description"><?php _e( 'Funds held under return policy/payment hold.', 'zerohold-finance' ); ?></p>
                 </div>
+
+                <!-- Platform Profit -->
+                <div class="zh-stat-card" style="border-left: 5px solid #1a7f37; background: #f8fff9;">
+                    <span class="zh-stat-label" style="color: #1a7f37;"><?php _e( 'Platform Net Profit (Retained)', 'zerohold-finance' ); ?></span>
+                    <div class="zh-stat-value" style="color: #1a7f37;"><?php echo wc_price($metrics['platform_profit']); ?></div>
+                    <p class="description"><?php _e( 'Pure retained earnings (Commissions + Fees - Liabilities).', 'zerohold-finance' ); ?></p>
+                </div>
             </div>
 
             <div class="zh-section">

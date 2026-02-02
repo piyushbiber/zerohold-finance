@@ -110,19 +110,18 @@ class QueryEngine {
         $table = $wpdb->prefix . 'zh_wallet_events';
 
         $metrics = [
-            'total_real'    => 0.00, // Total actual money held (Bank Balance)
-            'total_claims'  => 0.00, // Total liabilities/assets (IOUs)
-            'total_locked'  => 0.00, // Money currently held in escrow
+            'total_real'      => 0.00, // Total actual money held (Bank Balance)
+            'total_claims'    => 0.00, // Total liabilities (IOUs to vendors)
+            'total_locked'    => 0.00, // Escrow
+            'platform_profit' => 0.00, // Retained Platform Profit
         ];
 
         // 1. Total Real Money (The "Bank")
-        // We sum all 'real' entries across all entities. 
         $metrics['total_real'] = (float) $wpdb->get_var( 
             "SELECT SUM(amount) FROM $table WHERE money_nature = 'real'" 
         );
 
-        // 2. Total Claims (Net Owed to Vendors/Buyers)
-        // Usually, Vendor/Buyer balances are the primary concern.
+        // 2. Total Claims (Vendor/Buyer Liabilities)
         $metrics['total_claims'] = (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table WHERE money_nature = 'claim' AND entity_type IN ('vendor', 'buyer')"
         );
@@ -132,6 +131,12 @@ class QueryEngine {
             "SELECT SUM(amount) FROM $table 
              WHERE lock_type != 'none' 
              AND (unlock_at IS NULL OR unlock_at > NOW())"
+        );
+
+        // 4. Platform Net Profit (Retained Equity)
+        // This is the net balance of the 'admin' entity in the ledger
+        $metrics['platform_profit'] = (float) $wpdb->get_var(
+            "SELECT SUM(amount) FROM $table WHERE entity_type = 'admin'"
         );
 
         return $metrics;
