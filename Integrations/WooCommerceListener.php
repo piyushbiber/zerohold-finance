@@ -17,23 +17,13 @@ class WooCommerceListener {
         add_action( 'woocommerce_order_status_completed', [ __CLASS__, 'handle_order_payment' ], 10, 1 );
     }
 
-    /**
-     * Handle Order Payment (Earning Generation)
-     * 
-     * @param int $order_id
-     */
     public static function handle_order_payment( $order_id ) {
         $order = wc_get_order( $order_id );
         if ( ! $order ) {
             return;
         }
 
-        // Idempotency Check: Check if we already recorded earnings for this order
-        // In a real system, we'd query the ledger for reference_id = order_id AND impact = 'earnings'
-        // For now, we rely on the fact that LedgerService creates unique entries.
-        // But to prevent double entry on status changes (processing -> completed), we should check.
-        // For MVP, we effectively "gate" this logic.
-        
+        // Idempotency Check: Prevent duplicate entries
         if ( $order->get_meta( '_zh_finance_earnings_recorded' ) ) {
             return;
         }
@@ -42,6 +32,25 @@ class WooCommerceListener {
         if ( ! $vendor_id ) {
             return; // Not a vendor order?
         }
+
+        // Double-check in ledger to prevent race conditions
+        global $wpdb;
+        $table = $wpdb->prefix . 'zh_wallet_events';
+        $exists = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM $table WHERE reference_type = 'order' AND reference_id = %d AND impact = 'earnings'",
+            $order_id
+        ) );
+        
+        if ( $exists > 0 ) {
+            // Already recorded, mark the order and exit
+            $order->update_meta_data( '_zh_finance_earnings_recorded', true );
+            $order->save();
+            return;
+        }
+
+        // Set flag BEFORE processing to prevent race condition
+        $order->update_meta_data( '_zh_finance_earnings_recorded', true );
+        $order->save();
 
         // In a multi-vendor marketplace:
         // - Vendor receives ONLY the product subtotal (their earnings)
@@ -74,9 +83,6 @@ class WooCommerceListener {
         $result = FinanceIngress::handle_event( $payload );
 
         if ( ! is_wp_error( $result ) ) {
-            $order->update_meta_data( '_zh_finance_earnings_recorded', true );
-            $order->save();
-
             // Trigger automation (e.g., Platform Commissions)
             do_action( 'zh_finance_event', 'zh_event_order_completed', [
                 'order_id'    => $order_id,
