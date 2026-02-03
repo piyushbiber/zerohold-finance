@@ -26,6 +26,14 @@ class TeraWalletListener {
             return;
         }
 
+        // Phase 10: Sync Border
+        // Skip pushing back to TeraWallet if the source was already a TeraWallet transaction
+        // or if it's a WooCommerce order (handled natively by WooCommerce/TeraWallet checkout).
+        $ref_type = $data['reference_type'] ?? '';
+        if ( in_array( $ref_type, [ 'order', 'terawallet' ] ) ) {
+            return;
+        }
+
         $entities = [ 'from', 'to' ];
         foreach ( $entities as $dir ) {
             $entity = $data[$dir];
