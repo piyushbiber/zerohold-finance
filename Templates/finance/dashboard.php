@@ -74,7 +74,7 @@ if ( $active_tab === 'overview' ) {
             <?php if ( $active_tab === 'overview' ) : ?>
                 
                 <div class="zh-stats-grid">
-                    <!-- Available Balance Card -->\r
+                    <!-- Available Balance Card -->
                     <div class="zh-card">
                         <div class="zh-card-label">
                             <i class="fas fa-wallet"></i> <?php _e( 'Available Balance', 'zerohold-finance' ); ?>
