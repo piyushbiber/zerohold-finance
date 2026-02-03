@@ -212,7 +212,7 @@ class AdminUI {
                 .wp-admin .zh-stat-card [title] { text-decoration: none; border-bottom: none; }
             </style>
 
-            <h1><?php _e( 'ZeroHold Finance - Central Bank', 'zerohold-finance' ); ?></h1>
+            <h1><?php _e( 'ZeroHold Finance - Central Bank (v1.1-DEV)', 'zerohold-finance' ); ?></h1>
             <p><?php _e( 'Real-time financial health of the platform derived from the immutable ledger.', 'zerohold-finance' ); ?></p>
 
             <!-- Development Area: System Reset (MOVED TO TOP) -->
