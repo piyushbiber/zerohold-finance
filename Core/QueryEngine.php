@@ -134,8 +134,14 @@ class QueryEngine {
         ) );
 
         // Buyer Liabilities
-        // FINAL RULE: Buyer Wallet = TeraWallet Balance (Source of Truth)
-        $metrics['buyer_liabilities'] = self::get_terawallet_global_total();
+        // Internal Accounting: Derived strictly from the Ledger events.
+        $metrics['buyer_liabilities'] = max( 0, (float) $wpdb->get_var(
+            "SELECT SUM(amount) FROM $table WHERE entity_type = 'buyer' AND money_nature = 'claim'"
+        ) );
+
+        // Source of Truth (Reconciliation Info)
+        // This is purely informational and does NOT impact Platform Profit math.
+        $metrics['buyer_wallet_total'] = self::get_terawallet_global_total();
 
         // Vendor Escrow
         // Strictly only Vendor funds sit in escrow.
