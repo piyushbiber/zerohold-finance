@@ -184,6 +184,34 @@ if ( $active_tab === 'overview' ) {
                             <?php endif; ?>
                         </tbody>
                     </table>
+
+                    <?php if ( $total_rows > 0 ) : ?>
+                        <?php
+                            $total_pages = ceil( $total_rows / 20 );
+                            if ( $total_pages > 1 ) :
+                        ?>
+                            <div style="padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+                                <div class="tablenav" style="display: inline-block;">
+                                    <div class="tablenav-pages">
+                                        <span class="displaying-num"><?php echo number_format_i18n( $total_rows ); ?> items</span>
+                                        <?php
+                                            $page_links = paginate_links( array(
+                                                'base' => add_query_arg( 'pagenum', '%#%' ),
+                                                'format' => '',
+                                                'prev_text' => '&laquo;',
+                                                'next_text' => '&raquo;',
+                                                'total' => $total_pages,
+                                                'current' => $page
+                                            ) );
+                                            if ( $page_links ) {
+                                                echo '<span class="pagination-links">' . $page_links . '</span>';
+                                            }
+                                        ?>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
 
             <?php elseif ( $active_tab === 'statements' ) : ?>
