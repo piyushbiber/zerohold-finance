@@ -19,11 +19,18 @@ class QueryEngine {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
 
-        $balance = $wpdb->get_var( $wpdb->prepare(
-            "SELECT SUM(amount) FROM $table WHERE entity_type = %s AND entity_id = %d",
-            $entity_type,
-            $entity_id
-        ) );
+        // CRITICAL: Exclude platform charges from balance
+        // Platform charges (shipping, commission, penalties) are statement-only entries
+        $platform_charges = ['shipping_charge', 'commission', 'penalty', 'shipping_charge_vendor', 'shipping_charge_buyer'];
+        $placeholders = implode( ',', array_fill( 0, count( $platform_charges ), '%s' ) );
+
+        $sql = "SELECT SUM(amount) FROM $table 
+                WHERE entity_type = %s 
+                AND entity_id = %d
+                AND impact NOT IN ($placeholders)";
+
+        $params = array_merge( [$entity_type, $entity_id], $platform_charges );
+        $balance = $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
 
         return $balance ? (float) $balance : 0.00;
     }
@@ -41,30 +48,20 @@ class QueryEngine {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
 
-        // IMPORTANT: Locked balance should only include POSITIVE (credit) amounts.
-        // Negative (debit) locked transactions are liabilities/charges, not locked funds.
-        // 
-        // Example:
-        // - Earnings +₹100 (locked) = Locked balance
-        // - Shipping -₹40 (locked) = NOT locked balance (it's a charge)
-        // 
-        // Withdrawable = Total - Locked
-        // If Total = +60 (100 earnings - 40 shipping)
-        // And Locked = +100 (only positive locked amounts)
-        // Then Withdrawable = 60 - 100 = -40 ❌ WRONG!
-        //
-        // Actually, we need to rethink this...
-        // Locked should be: SUM of positive locked amounts
-        // But shipping charges reduce the total, so withdrawable is already correct!
+        // CRITICAL: Locked balance = ONLY locked earnings
+        // Excludes platform charges completely
+        $platform_charges = ['shipping_charge', 'commission', 'penalty', 'shipping_charge_vendor', 'shipping_charge_buyer'];
+        $placeholders = implode( ',', array_fill( 0, count( $platform_charges ), '%s' ) );
         
         $sql = "SELECT SUM(amount) FROM $table 
                 WHERE entity_type = %s 
                 AND entity_id = %d 
                 AND lock_type != 'none' 
-                AND amount > 0
+                AND impact NOT IN ($placeholders)
                 AND (unlock_at IS NULL OR unlock_at > NOW())";
 
-        $locked = $wpdb->get_var( $wpdb->prepare( $sql, $entity_type, $entity_id ) );
+        $params = array_merge( [$entity_type, $entity_id], $platform_charges );
+        $locked = $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
 
         return $locked ? (float) $locked : 0.00;
     }
@@ -80,8 +77,9 @@ class QueryEngine {
         $total = self::get_wallet_balance( $entity_type, $entity_id );
         $locked = self::get_locked_balance( $entity_type, $entity_id );
 
-        // If locked balance is positive (User has funds they can't touch), we subtract it.
-        // Total = 100. Locked = 20. Withdrawable = 80.
+        // Total and Locked both exclude platform charges
+        // So: Withdrawable = Unlocked Earnings
+        // This can NEVER go negative due to platform charges
         
         return $total - $locked;
     }
