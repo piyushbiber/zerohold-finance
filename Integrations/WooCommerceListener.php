@@ -60,9 +60,9 @@ class WooCommerceListener {
         
         $payload = [
             'from' => [
-                'type'   => 'buyer',
-                'id'     => $order->get_customer_id() ?: 0,
-                'nature' => 'claim' // Pulling from buyer's internal obligation
+                'type'   => 'outside',
+                'id'     => 0,
+                'nature' => 'real' // Value enters the platform ecosystem
             ],
             'to' => [
                 'type'   => 'vendor',

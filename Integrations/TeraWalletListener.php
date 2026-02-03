@@ -84,53 +84,14 @@ class TeraWalletListener {
 
         \ZeroHold\Finance\Core\LedgerService::$is_syncing = true;
 
-        $amount = (float) $transaction->amount;
-        $user_id = $transaction->user_id;
-
-        if ( $transaction->type === 'credit' ) {
-            // PULL: TeraWallet Credit (Recharge) 
-            // 1. Record Real Cash entering the Admin Bank Pool
-            FinanceIngress::handle_event([
-                'from' => [ 'type' => 'outside', 'id' => 0, 'nature' => 'real' ],
-                'to'   => [ 'type' => 'admin',   'id' => 0, 'nature' => 'real' ],
-                'amount' => $amount,
-                'impact' => 'wallet_recharge',
-                'reference_type' => 'terawallet',
-                'reference_id'   => $transaction_id,
-                'reason' => 'Cash Received: ' . ($transaction->details ?: 'Recharge')
-            ]);
-
-            // 2. Record the liability to the buyer (Claim issued)
-            FinanceIngress::handle_event([
-                'from' => [ 'type' => 'outside', 'id' => 0, 'nature' => 'claim' ],
-                'to'   => [ 'type' => 'buyer',   'id' => $user_id, 'nature' => 'claim' ],
-                'amount' => $amount,
-                'impact' => 'wallet_recharge',
-                'reference_type' => 'terawallet',
-                'reference_id'   => $transaction_id,
-                'reason' => 'User Credit: ' . ($transaction->details ?: 'Recharge')
-            ]);
-        } else {
-            // PULL: TeraWallet Debit
-            // If it's for an order, WooCommerceListener handles the move from Buyer -> Vendor.
-            // We detect this by checking if the details contain an order ID or known WooCommerce pattern.
-            // Standard TeraWallet order payment description: "For order #123 payment" or similar.
-            if ( preg_match( '/order #?\d+/i', $transaction->details ) ) {
-                \ZeroHold\Finance\Core\LedgerService::$is_syncing = false;
-                return;
-            }
-
-            // If it's a general debit, we move from Buyer Claim to Admin Claim (reducing liabilities).
-            FinanceIngress::handle_event([
-                'from' => [ 'type' => 'buyer', 'id' => $user_id, 'nature' => 'claim' ],
-                'to'   => [ 'type' => 'admin', 'id' => 0,        'nature' => 'claim' ],
-                'amount' => $amount,
-                'impact' => 'wallet_payment',
-                'reference_type' => 'terawallet',
-                'reference_id'   => $transaction_id,
-                'reason' => $transaction->details ?: 'TeraWallet Payment'
-            ]);
-        }
+        /**
+         * ⚖️ ARCHITECTURAL INVARIANT (PHASE 15):
+         * Pull-sync for recharges is DISABLED.
+         * Recharges in TeraWallet are external cash flows.
+         * We no longer record them in the internal ledger to prevent "Phantom Profit".
+         */
+        \ZeroHold\Finance\Core\LedgerService::$is_syncing = false;
+        return;
 
         \ZeroHold\Finance\Core\LedgerService::$is_syncing = false;
     }

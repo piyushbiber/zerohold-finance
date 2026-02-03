@@ -259,18 +259,15 @@ class AdminUI {
                 <!-- ROW 2: LIABILITY BREAKDOWN -->
                 <span class="zh-row-title"><?php _e( 'LIABILITY BREAKDOWN', 'zerohold-finance' ); ?></span>
                 <div class="zh-grid-row zh-row-sub">
-                    <div class="zh-sub-card" title="Funds owed to vendors (withdrawable + locked).">
+                    <div class="zh-sub-card" title="Funds owed to vendors (withdrawable + locked). This is the only liability tracked in our ledger.">
                         <span class="zh-stat-label">🧾 <?php _e( 'Vendor Liabilities', 'zerohold-finance' ); ?></span>
                         <div class="zh-stat-value"><?php echo wc_price($metrics['vendor_liabilities']); ?></div>
                     </div>
-                    <div class="zh-sub-card" title="Funds owed to buyers recorded in our internal ledger. Matches the 'Real' money in bank.">
-                        <span class="zh-stat-label">👤 <?php _e( 'Buyer Liabilities (Ledger)', 'zerohold-finance' ); ?></span>
-                        <div class="zh-stat-value"><?php echo wc_price($metrics['buyer_liabilities']); ?></div>
-                    </div>
-                    <div class="zh-sub-card" style="border-left: 3px solid #72aee6; background: #f0f6fb;" title="Informational: Real-time balance total directly from TeraWallet. Use for reconciliation.">
-                        <span class="zh-stat-label">💳 <?php _e( 'TeraWallet Info (S.O.T)', 'zerohold-finance' ); ?></span>
+                    <div class="zh-sub-card" style="border-left: 3px solid #72aee6; background: #f0f6fb;" title="Informational Status: Total of all buyer balances in TeraWallet. This is external data and does NOT affect platform net profit.">
+                        <span class="zh-stat-label">ℹ️ <?php _e( 'TeraWallet: External Buyer Funds', 'zerohold-finance' ); ?></span>
                         <div class="zh-stat-value" style="color: #2271b1;"><?php echo wc_price($metrics['buyer_wallet_total']); ?></div>
                     </div>
+                    <div></div> <!-- Spacer -->
                     <div></div> <!-- Spacer -->
                     <div></div> <!-- Spacer -->
                 </div>

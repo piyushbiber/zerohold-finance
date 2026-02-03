@@ -112,14 +112,19 @@ class QueryEngine {
 
         $metrics = [
             'total_real'         => 0.00, // Bank Pool
-            'total_liabilities'  => 0.00, // Total Owed (Vendor + Buyer)
+            'total_liabilities'  => 0.00, // Total Owed (Vendor only per Phase 15)
             'total_escrow'       => 0.00, // Total Locked
             'platform_profit'    => 0.00, // Retained Profit
             'vendor_liabilities' => 0.00, // Sub-card: Vendor Owed
-            'buyer_liabilities'  => 0.00, // Sub-card: Buyer Owed
             'vendor_escrow'      => 0.00, // Sub-card: Vendor Locked
-            'buyer_escrow'       => 0.00, // Sub-card: Buyer Locked
         ];
+
+        /**
+         * ⚖️ ARCHITECTURAL INVARIANT (PHASE 15):
+         * External Buyer balances (TeraWallet) must NEVER influence platform accounting.
+         * Platform Liabilities = Vendor Liabilities ONLY.
+         * Platform Net Profit = Bank Pool - Vendor Liabilities.
+         */
 
         // 1. Bank Pool (Real Money belonging to the platform)
         $metrics['total_real'] = (float) $wpdb->get_var( 
@@ -133,14 +138,8 @@ class QueryEngine {
             "SELECT SUM(amount) FROM $table WHERE entity_type = 'vendor' AND money_nature = 'claim'"
         ) );
 
-        // Buyer Liabilities
-        // Internal Accounting: Derived strictly from the Ledger events.
-        $metrics['buyer_liabilities'] = max( 0, (float) $wpdb->get_var(
-            "SELECT SUM(amount) FROM $table WHERE entity_type = 'buyer' AND money_nature = 'claim'"
-        ) );
-
-        // Source of Truth (Reconciliation Info)
-        // This is purely informational and does NOT impact Platform Profit math.
+        // Source of Truth (RECONCILIATION ONLY)
+        // This is strictly informational. It does NOT enter platform math.
         $metrics['buyer_wallet_total'] = self::get_terawallet_global_total();
 
         // Vendor Escrow
@@ -152,17 +151,11 @@ class QueryEngine {
              AND (unlock_at IS NULL OR unlock_at > NOW())"
         ) );
 
-        // Buyer Escrow
-        // Hard-enforce zero for Buyers per Phase 9 Governance.
-        $metrics['buyer_escrow'] = 0.00;
+        // --- CALCULATION REFINEMENT (Buyer-less Ledger) ---
+        $metrics['total_liabilities'] = $metrics['vendor_liabilities'];
+        $metrics['total_escrow']      = $metrics['vendor_escrow'];
 
-        // --- CALCULATION REFINEMENT ---
-
-        // Recalculate Total Liabilities & Escrow
-        $metrics['total_liabilities'] = $metrics['vendor_liabilities'] + $metrics['buyer_liabilities'];
-        $metrics['total_escrow']      = $metrics['vendor_escrow']; // Strictly vendor-holdings.
-
-        // 4. Platform Net Profit = Bank Pool - Total Liabilities
+        // 4. Platform Net Profit = Real Cash - Vendor Debt
         $metrics['platform_profit'] = $metrics['total_real'] - $metrics['total_liabilities'];
 
         return $metrics;

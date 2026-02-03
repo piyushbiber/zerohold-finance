@@ -41,6 +41,17 @@ class LedgerService {
         // Generate Group ID
         $group_id = wp_generate_uuid4();
 
+        /**
+         * ⚖️ ARCHITECTURAL INVARIANT (PHASE 15):
+         * Buyer accounting is EXCLUSIVELY managed by TeraWallet.
+         * The ZeroHold Finance Ledger must NEVER store buyer balances or recharges.
+         * Buyer data is informational only and never part of platform equity math.
+         */
+        if ( $from_entity['type'] === 'buyer' || $to_entity['type'] === 'buyer' ) {
+            error_log( "ZH Finance Block: Attempted to record ledger entry for 'buyer' entity. Blocked for decoupling integrity." );
+            return false;
+        }
+
         // Start Transaction
         $wpdb->query( 'START TRANSACTION' );
 
