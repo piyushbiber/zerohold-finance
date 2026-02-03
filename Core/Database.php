@@ -148,22 +148,25 @@ class Database {
 
         // BEFORE UPDATE Trigger
         // We allow updates ONLY to the 'unlock_at' column to support delivery-based maturity.
+        // Or if @zh_finance_bypass_triggers is set to 1.
         $sql_update = "CREATE TRIGGER {$wpdb->prefix}zh_prevent_ledger_update
             BEFORE UPDATE ON $table
             FOR EACH ROW
             BEGIN
-                IF (OLD.entry_group_id != NEW.entry_group_id OR 
-                    OLD.entity_type != NEW.entity_type OR 
-                    OLD.entity_id != NEW.entity_id OR 
-                    OLD.amount != NEW.amount OR 
-                    OLD.category != NEW.category OR 
-                    OLD.impact != NEW.impact OR 
-                    OLD.money_nature != NEW.money_nature OR
-                    OLD.lock_type != NEW.lock_type OR
-                    OLD.reference_type != NEW.reference_type OR
-                    OLD.reference_id != NEW.reference_id) THEN
-                    SIGNAL SQLSTATE '45000'
-                    SET MESSAGE_TEXT = 'ZeroHold Finance Ledger is IMMUTABLE. Only maturity dates (unlock_at) may be adjusted.';
+                IF (@zh_finance_bypass_triggers IS NULL OR @zh_finance_bypass_triggers != 1) THEN
+                    IF (OLD.entry_group_id != NEW.entry_group_id OR 
+                        OLD.entity_type != NEW.entity_type OR 
+                        OLD.entity_id != NEW.entity_id OR 
+                        OLD.amount != NEW.amount OR 
+                        OLD.category != NEW.category OR 
+                        OLD.impact != NEW.impact OR 
+                        OLD.money_nature != NEW.money_nature OR
+                        OLD.lock_type != NEW.lock_type OR
+                        OLD.reference_type != NEW.reference_type OR
+                        OLD.reference_id != NEW.reference_id) THEN
+                        SIGNAL SQLSTATE '45000'
+                        SET MESSAGE_TEXT = 'ZeroHold Finance Ledger is IMMUTABLE. Only maturity dates (unlock_at) may be adjusted.';
+                    END IF;
                 END IF;
             END;";
             
@@ -172,8 +175,10 @@ class Database {
             BEFORE DELETE ON $table
             FOR EACH ROW
             BEGIN
-                SIGNAL SQLSTATE '45000'
-                SET MESSAGE_TEXT = 'ZeroHold Finance Ledger is IMMUTABLE. Deletes are forbidden.';
+                IF (@zh_finance_bypass_triggers IS NULL OR @zh_finance_bypass_triggers != 1) THEN
+                    SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'ZeroHold Finance Ledger is IMMUTABLE. Deletes are forbidden.';
+                END IF;
             END;";
 
         // Triggers need to be executed via raw query

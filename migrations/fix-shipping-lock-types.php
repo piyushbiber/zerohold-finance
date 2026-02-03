@@ -22,9 +22,8 @@ function zh_finance_fix_shipping_lock_types() {
     
     $placeholders = implode( ',', array_fill( 0, count( $impacts ), '%s' ) );
     
-    // 1. TEMPORARILY DROP TRIGGERS (To bypass IMMUTABILITY for this fix)
-    $wpdb->query( "DROP TRIGGER IF EXISTS {$wpdb->prefix}zh_prevent_ledger_update" );
-    $wpdb->query( "DROP TRIGGER IF EXISTS {$wpdb->prefix}zh_prevent_ledger_delete" );
+    // 1. SET BYPASS VARIABLE (Authorized by Admin)
+    $wpdb->query( "SET @zh_finance_bypass_triggers = 1" );
 
     // 2. Update all matching entries that have lock_type = 'none'
     $sql = "UPDATE $table 
@@ -35,10 +34,8 @@ function zh_finance_fix_shipping_lock_types() {
             
     $result = $wpdb->query( $wpdb->prepare( $sql, $impacts ) );
 
-    // 3. RESTORE TRIGGERS (Re-enable IMMUTABILITY)
-    if ( class_exists( 'ZeroHold\Finance\Core\Database' ) ) {
-        \ZeroHold\Finance\Core\Database::create_triggers();
-    }
+    // 3. CLEAR BYPASS VARIABLE
+    $wpdb->query( "SET @zh_finance_bypass_triggers = 0" );
     
     if ($result === false) {
         return new WP_Error('db_error', 'Database error: ' . $wpdb->last_error);
