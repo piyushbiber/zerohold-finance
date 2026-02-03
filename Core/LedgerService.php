@@ -57,7 +57,7 @@ class LedgerService {
         $wpdb->query( 'START TRANSACTION' );
 
         // --- FINAL PRODUCTION GUARD: Force order_hold for known Order-based charges ---
-        $locked_impacts = [ 'shipping_charge', 'shipping_charge_vendor', 'shipping_charge_buyer', 'commission', 'platform_fee' ];
+        $locked_impacts = [ 'shipping_charge', 'shipping_charge_vendor', 'shipping_charge_buyer', 'commission', 'platform_fee', 'sms' ];
         if ( $reference_type === 'order' && in_array( $impact, $locked_impacts ) ) {
             $lock_type = 'order_hold';
         }

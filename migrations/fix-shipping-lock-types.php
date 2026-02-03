@@ -17,7 +17,8 @@ function zh_finance_fix_shipping_lock_types() {
         'shipping_charge_vendor',
         'shipping_charge_buyer',
         'commission',
-        'platform_fee'
+        'platform_fee',
+        'sms'
     ];
     
     $placeholders = implode( ',', array_fill( 0, count( $impacts ), '%s' ) );
