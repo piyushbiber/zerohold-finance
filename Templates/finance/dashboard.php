@@ -138,7 +138,7 @@ if ( $active_tab === 'overview' ) {
                                     ?>
                                     <tr>
                                         <td style="color: #a0aec0; font-family: monospace;">#<?php echo esc_html( $event->id ); ?></td>
-                                        <td><?php echo date_i18n( 'M j, Y', strtotime( $event->created_at ) ); ?> <span style="color:#a0aec0; font-size:0.8em;"><?php echo date_i18n( 'H:i', strtotime( $event->created_at ) ); ?></span></td>
+                                        <td><?php echo get_date_from_gmt( $event->created_at, 'M j, Y' ); ?> <span style="color:#a0aec0; font-size:0.8em;"><?php echo get_date_from_gmt( $event->created_at, 'H:i' ); ?></span></td>
                                         <td>
                                             <span class="zh-badge <?php echo $event->category === 'credit' ? 'zh-badge-green' : 'zh-badge-red'; ?>">
                                                 <?php echo esc_html( ucfirst( str_replace( '_', ' ', $event->impact ) ) ); ?>
