@@ -56,7 +56,7 @@ class ZSSListener {
         error_log( "ZH Finance: Marked Order #" . $data['order_id'] . " as shipping recorded" );
 
         // 1. Vendor Charge (Vendor Claim -> Admin Real)
-        // Shipping is IMMEDIATE platform revenue, NOT locked
+        // Shipping is LOCKED with the order - reduces Pending Balance
         if ( $data['charge_vendor'] > 0 ) {
             error_log( "ZH Finance: Recording vendor shipping charge: ₹" . $data['charge_vendor'] . " for Vendor #" . $data['vendor_id'] );
             
@@ -67,7 +67,7 @@ class ZSSListener {
                 'impact' => 'shipping_charge',
                 'reference_type' => 'order',
                 'reference_id' => $data['order_id'],
-                'lock_type' => 'none' // NOT locked - immediate platform revenue
+                'lock_type' => 'order_hold' // LOCKED - reduces Pending Balance
             ]);
             
             if ( is_wp_error( $result ) ) {

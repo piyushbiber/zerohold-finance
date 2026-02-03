@@ -19,18 +19,14 @@ class QueryEngine {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
 
-        // CRITICAL: Exclude platform charges from balance
-        // Platform charges (shipping, commission, penalties) are statement-only entries
-        $platform_charges = ['shipping_charge', 'commission', 'penalty', 'shipping_charge_vendor', 'shipping_charge_buyer'];
-        $placeholders = implode( ',', array_fill( 0, count( $platform_charges ), '%s' ) );
-
-        $sql = "SELECT SUM(amount) FROM $table 
-                WHERE entity_type = %s 
-                AND entity_id = %d
-                AND impact NOT IN ($placeholders)";
-
-        $params = array_merge( [$entity_type, $entity_id], $platform_charges );
-        $balance = $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
+        // Wallet balance = SUM of ALL amounts
+        // This includes earnings AND deductions (shipping, commission, etc.)
+        // Because Pending/Available represent NET earnings (what vendor will receive)
+        $balance = $wpdb->get_var( $wpdb->prepare(
+            "SELECT SUM(amount) FROM $table WHERE entity_type = %s AND entity_id = %d",
+            $entity_type,
+            $entity_id
+        ) );
 
         return $balance ? (float) $balance : 0.00;
     }
@@ -48,20 +44,16 @@ class QueryEngine {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
 
-        // CRITICAL: Locked balance = ONLY locked earnings
-        // Excludes platform charges completely
-        $platform_charges = ['shipping_charge', 'commission', 'penalty', 'shipping_charge_vendor', 'shipping_charge_buyer'];
-        $placeholders = implode( ',', array_fill( 0, count( $platform_charges ), '%s' ) );
-        
+        // Locked balance = SUM of ALL locked amounts
+        // This includes locked earnings AND locked deductions (shipping with order_hold)
+        // Because Pending Balance represents NET locked earnings
         $sql = "SELECT SUM(amount) FROM $table 
                 WHERE entity_type = %s 
                 AND entity_id = %d 
                 AND lock_type != 'none' 
-                AND impact NOT IN ($placeholders)
                 AND (unlock_at IS NULL OR unlock_at > NOW())";
 
-        $params = array_merge( [$entity_type, $entity_id], $platform_charges );
-        $locked = $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
+        $locked = $wpdb->get_var( $wpdb->prepare( $sql, $entity_type, $entity_id ) );
 
         return $locked ? (float) $locked : 0.00;
     }
