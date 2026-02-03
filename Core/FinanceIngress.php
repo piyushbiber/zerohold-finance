@@ -52,15 +52,6 @@ class FinanceIngress {
         }
         
         // 4. Record to Ledger
-        $lock_type = $payload['lock_type'] ?? 'none';
-        
-        // --- PRODUCTION GUARD: Force order_hold for known Order-based impacts ---
-        // Any deduction related to an order MUST be locked to prevent negative Available Balance
-        $locked_impacts = [ 'shipping_charge', 'shipping_charge_vendor', 'shipping_charge_buyer', 'commission', 'platform_fee' ];
-        if ( ( $payload['reference_type'] ?? '' ) === 'order' && in_array( $payload['impact'], $locked_impacts ) ) {
-            $lock_type = 'order_hold';
-        }
-
         $group_id = LedgerService::record(
             $from,
             $to,
@@ -68,7 +59,7 @@ class FinanceIngress {
             $payload['impact'],
             $payload['reference_type'] ?? 'system',
             $payload['reference_id'] ?? 0,
-            $lock_type,
+            $payload['lock_type'] ?? 'none',
             $payload['unlock_at'] ?? null
         );
 
