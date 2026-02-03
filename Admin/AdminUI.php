@@ -233,6 +233,12 @@ class AdminUI {
                         <small style="display: block; margin-top: 5px; color: #d63638;">Deletes Rules</small>
                     </form>
                 </div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #f0f0f1;">
+                    <a href="<?php echo admin_url('admin.php?page=zh-finance&zh_fix_shipping_locks=1'); ?>" class="button button-small" onclick="return confirm('Repair lock_type for existing order charges?')">
+                        🩹 Repair Existing Lock Types
+                    </a>
+                    <small style="margin-left: 10px; color: #666;">Fixes negative balance on OLD test orders.</small>
+                </div>
             </div>
             
             <div class="zh-dashboard-grid">
@@ -553,10 +559,10 @@ class AdminUI {
                         <th><label>Lock Type</label></th>
                         <td>
                             <select name="lock_type">
-                                <option value="none">none (Immediate)</option>
                                 <option value="order_hold">order_hold (Locked until return window ends)</option>
+                                <option value="none">none (Immediate)</option>
                             </select>
-                            <span class="zh-tooltip">Keep money locked if transaction follows return policy.</span>
+                            <span class="zh-tooltip">Keep money locked if transaction follows return policy. (Recommended for Orders)</span>
                         </td>
                     </tr>
                 </table>
