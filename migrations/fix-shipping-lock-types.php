@@ -11,19 +11,32 @@ function zh_finance_fix_shipping_lock_types() {
     global $wpdb;
     $table = $wpdb->prefix . 'zh_wallet_events';
     
-    // Update all shipping_charge entries that have lock_type='none'
-    $result = $wpdb->query(
-        "UPDATE $table 
-        SET lock_type = 'order_hold' 
-        WHERE impact IN ('shipping_charge', 'shipping_charge_vendor') 
-        AND lock_type = 'none'"
-    );
+    // Impact types that should definitely be locked with the order
+    $impacts = [
+        'shipping_charge',
+        'shipping_charge_vendor',
+        'shipping_charge_buyer',
+        'commission',
+        'platform_fee'
+    ];
+    
+    $placeholders = implode( ',', array_fill( 0, count( $impacts ), '%s' ) );
+    
+    // Update all matching entries that have lock_type = 'none'
+    // We target reference_type = 'order' to be safe
+    $sql = "UPDATE $table 
+            SET lock_type = 'order_hold' 
+            WHERE impact IN ($placeholders) 
+            AND lock_type = 'none'
+            AND reference_type = 'order'";
+            
+    $result = $wpdb->query( $wpdb->prepare( $sql, $impacts ) );
     
     if ($result === false) {
-        return new WP_Error('db_error', 'Failed to update shipping lock types');
+        return new WP_Error('db_error', 'Database error: ' . $wpdb->last_error);
     }
     
-    return "Updated $result shipping charge entries to lock_type='order_hold'";
+    return "Updated $result entries to lock_type='order_hold'";
 }
 
 // Add admin action to run migration
