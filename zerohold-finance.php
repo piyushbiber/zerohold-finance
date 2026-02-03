@@ -77,6 +77,9 @@ class ZeroHold_Finance {
         require_once ZH_FINANCE_PATH . 'Admin/AdminUI.php';
         ZeroHold\Finance\Admin\AdminUI::init();
         
+        require_once ZH_FINANCE_PATH . 'Admin/DebugPage.php';
+        ZeroHold\Finance\Admin\DebugPage::init();
+        
         // Initialize Integrations
         ZeroHold\Finance\Integrations\WooCommerceListener::init();
         ZeroHold\Finance\Integrations\ZSSListener::init();
