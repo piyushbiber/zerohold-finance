@@ -82,7 +82,7 @@ if ( $active_tab === 'overview' ) {
                         <div class="zh-card-value" style="color: #48bb78;">
                             <?php echo wc_price( $withdrawable ); ?>
                         </div>
-                        <div class="zh-card-sub"><?php _e( 'Available for immediate payout', 'zerohold-finance' ); ?></div>
+                        <div class="zh-card-sub"><?php _e( 'Ready for withdrawal (unlocked earnings only)', 'zerohold-finance' ); ?></div>
                         <a href="<?php echo dokan_get_navigation_url('withdraw'); ?>" class="zh-btn-withdraw">
                             <?php _e('Request Withdrawal', 'zerohold-finance'); ?>
                         </a>
@@ -96,7 +96,7 @@ if ( $active_tab === 'overview' ) {
                         <div class="zh-card-value" style="color: #ed8936;">
                             <?php echo wc_price( $locked_balance ); ?>
                         </div>
-                        <div class="zh-card-sub"><?php _e( 'From active orders (return window)', 'zerohold-finance' ); ?></div>
+                        <div class="zh-card-sub"><?php _e( 'Locked earnings (unlocks after return window)', 'zerohold-finance' ); ?></div>
                     </div>
 
                     <!-- Net Position Card (NEW) -->
@@ -107,7 +107,7 @@ if ( $active_tab === 'overview' ) {
                         <div class="zh-card-value" style="color: <?php echo $net_position < 0 ? '#e53e3e' : '#38a169'; ?>;">
                             <?php echo wc_price( $net_position ); ?>
                         </div>
-                        <div class="zh-card-sub"><?php _e( 'Overall profit/loss (includes fees)', 'zerohold-finance' ); ?></div>
+                        <div class="zh-card-sub"><?php _e( 'Real-time profit/loss (reflects all statement entries)', 'zerohold-finance' ); ?></div>
                     </div>
                 </div>
 
