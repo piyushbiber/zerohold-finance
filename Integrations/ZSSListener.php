@@ -35,41 +35,44 @@ class ZSSListener {
             return;
         }
 
-        // 1. Buyer Charge (Buyer Claim -> Admin Real)
-        if ( $data['charge_buyer'] > 0 ) {
-            FinanceIngress::handle_event([
-                'from' => [ 'type' => 'buyer', 'id' => $data['buyer_id'], 'nature' => 'claim' ],
-                'to'   => [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ],
-                'amount' => $data['charge_buyer'],
-                'impact' => 'shipping_charge_buyer',
-                'reference_type' => 'order',
-                'reference_id' => $data['order_id']
-            ]);
+        // Idempotency check: prevent duplicate shipping charges
+        $order = wc_get_order( $data['order_id'] );
+        if ( ! $order ) {
+            return;
         }
 
-        // 2. Vendor Charge (Vendor Claim -> Admin Real)
+        if ( $order->get_meta( '_zh_finance_shipping_recorded' ) ) {
+            return;
+        }
+
+        // Mark as recorded BEFORE processing
+        $order->update_meta_data( '_zh_finance_shipping_recorded', true );
+        $order->save();
+
+        // 1. Vendor Charge (Vendor Claim -> Admin Real)
+        // This deducts the shipping cost (including profit cap) from vendor's balance
         if ( $data['charge_vendor'] > 0 ) {
             FinanceIngress::handle_event([
                 'from' => [ 'type' => 'vendor', 'id' => $data['vendor_id'], 'nature' => 'claim' ],
                 'to'   => [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ],
                 'amount' => $data['charge_vendor'],
-                'impact' => 'shipping_charge_vendor',
+                'impact' => 'shipping_charge',
                 'reference_type' => 'order',
                 'reference_id' => $data['order_id'],
-                'lock_type' => 'order_hold' // Shipping charge is locked same as earnings until finalized
+                'lock_type' => 'order_hold' // Locked until order is finalized
             ]);
         }
 
-        // 3. Actual Cost (Admin Real -> Bank External)
+        // 2. Actual Cost (Admin Real -> Outside External)
+        // This records the actual cost paid to the shipping platform
         if ( $data['cost_actual'] > 0 ) {
             FinanceIngress::handle_event([
                 'from' => [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ],
-                'to'   => [ 'type' => 'bank', 'id' => 0, 'nature' => 'external' ], // Money leaves system
+                'to'   => [ 'type' => 'outside', 'id' => 0, 'nature' => 'external' ],
                 'amount' => $data['cost_actual'],
                 'impact' => 'shipping_cost_actual',
-                'reference_type' => 'shipping_label',
-                'reference_id' => is_numeric($data['label_id']) ? $data['label_id'] : $data['order_id'] 
-                // Note: reference_id must be int. If label_id is string, we map or use order_id.
+                'reference_type' => 'order',
+                'reference_id' => $data['order_id']
             ]);
         }
     }
