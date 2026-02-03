@@ -33,22 +33,23 @@ class LedgerService {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
 
+        error_log( sprintf( 
+            "ZH Finance Debug: Recording %s impact for Order #%d. Amount: %f, Lock: %s, From: %s:%d, To: %s:%d",
+            $impact, $reference_id, $amount, $lock_type, $from_entity['type'], $from_entity['id'], $to_entity['type'], $to_entity['id']
+        ) );
+
         // Basic Validation
         if ( ! is_numeric( $amount ) || $amount <= 0 ) {
+            error_log( "ZH Finance Error: Invalid amount ($amount)" );
             return false;
         }
 
         // Generate Group ID
         $group_id = wp_generate_uuid4();
 
-        /**
-         * ⚖️ ARCHITECTURAL INVARIANT (PHASE 15):
-         * Buyer accounting is EXCLUSIVELY managed by TeraWallet.
-         * The ZeroHold Finance Ledger must NEVER store buyer balances or recharges.
-         * Buyer data is informational only and never part of platform equity math.
-         */
+        // ⚖️ Decoupling Guard (Phase 15)
         if ( $from_entity['type'] === 'buyer' || $to_entity['type'] === 'buyer' ) {
-            error_log( "ZH Finance Block: Attempted to record ledger entry for 'buyer' entity. Blocked for decoupling integrity." );
+            error_log( "ZH Finance Block: Buyer entity blocked for decoupling integrity." );
             return false;
         }
 
@@ -57,7 +58,6 @@ class LedgerService {
 
         try {
             // 1. Debit the Sender (From)
-            // DEBITS can be locked if passed (e.g. shipping holds to reduce Pending Balance)
             $debit_inserted = $wpdb->insert(
                 $table,
                 [
@@ -67,7 +67,7 @@ class LedgerService {
                     'amount'         => -1 * abs( $amount ), // Signed Negative
                     'category'       => 'debit',
                     'impact'         => $impact,
-                    'money_nature'   => $from_entity['nature'], // real vs claim
+                    'money_nature'   => $from_entity['nature'],
                     'lock_type'      => $lock_type,
                     'unlock_at'      => $unlock_at,
                     'reference_type' => $reference_type,
@@ -78,7 +78,6 @@ class LedgerService {
             );
 
             // 2. Credit the Receiver (To)
-            // CREDITS are locked IF requested
             $credit_inserted = $wpdb->insert(
                 $table,
                 [
@@ -88,7 +87,7 @@ class LedgerService {
                     'amount'         => abs( $amount ), // Positive
                     'category'       => 'credit',
                     'impact'         => $impact,
-                    'money_nature'   => $to_entity['nature'], // real vs claim
+                    'money_nature'   => $to_entity['nature'],
                     'lock_type'      => $lock_type,
                     'unlock_at'      => $unlock_at,
                     'reference_type' => $reference_type,
@@ -99,10 +98,11 @@ class LedgerService {
             );
 
             if ( $debit_inserted === false || $credit_inserted === false ) {
-                throw new \Exception( 'Failed to insert ledger rows.' );
+                throw new \Exception( 'DB Insert Error: ' . $wpdb->last_error );
             }
 
             $wpdb->query( 'COMMIT' );
+            error_log( "ZH Finance Success: Ledger recorded successfully (Group: $group_id)" );
 
             // --- Post-Commit Hooks ---
             do_action( 'zh_finance_ledger_recorded', $group_id, [

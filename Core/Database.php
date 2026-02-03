@@ -210,8 +210,15 @@ class Database {
         foreach ( $tables as $table ) {
             $wpdb->query( "TRUNCATE TABLE $table" );
         }
- 
-        // 3. Re-enable Protection
+
+        // 3. Clear Order Metadata (Allows re-testing same orders)
+        $wpdb->query( "DELETE FROM {$wpdb->prefix}postmeta WHERE meta_key IN (
+            '_zh_finance_shipping_recorded', 
+            '_zh_finance_commission_recorded',
+            '_zh_finance_earnings_recorded'
+        )" );
+
+        // 4. Re-enable Protection
         self::create_triggers();
     }
 }
