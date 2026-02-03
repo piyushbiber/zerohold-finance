@@ -263,8 +263,8 @@ class AdminUI {
                         <span class="zh-stat-label">🧾 <?php _e( 'Vendor Liabilities', 'zerohold-finance' ); ?></span>
                         <div class="zh-stat-value"><?php echo wc_price($metrics['vendor_liabilities']); ?></div>
                     </div>
-                    <div class="zh-sub-card" title="Buyer wallet balances, refunds, and credits owed.">
-                        <span class="zh-stat-label">👤 <?php _e( 'Buyer Liabilities', 'zerohold-finance' ); ?></span>
+                    <div class="zh-sub-card" title="Absolute Total of all Buyer balances held in TeraWallet (Source of Truth).">
+                        <span class="zh-stat-label">👥 <?php _e( 'Buyer Wallet Total (Liability)', 'zerohold-finance' ); ?></span>
                         <div class="zh-stat-value"><?php echo wc_price($metrics['buyer_liabilities']); ?></div>
                     </div>
                     <div></div> <!-- Spacer -->

@@ -134,9 +134,8 @@ class QueryEngine {
         ) );
 
         // Buyer Liabilities
-        $metrics['buyer_liabilities'] = max( 0, (float) $wpdb->get_var(
-            "SELECT SUM(amount) FROM $table WHERE entity_type = 'buyer' AND money_nature = 'claim'"
-        ) );
+        // FINAL RULE: Buyer Wallet = TeraWallet Balance (Source of Truth)
+        $metrics['buyer_liabilities'] = self::get_terawallet_global_total();
 
         // Vendor Escrow
         // Strictly only Vendor funds sit in escrow.
@@ -161,5 +160,21 @@ class QueryEngine {
         $metrics['platform_profit'] = $metrics['total_real'] - $metrics['total_liabilities'];
 
         return $metrics;
+    }
+
+    /**
+     * Get the absolute total of all TeraWallet balances in the system.
+     * This is the "True" liability of the system according to the wallet plugin.
+     * 
+     * @return float
+     */
+    public static function get_terawallet_global_total() {
+        global $wpdb;
+        $total = $wpdb->get_var( 
+            "SELECT SUM(meta_value + 0) 
+             FROM {$wpdb->usermeta} 
+             WHERE meta_key = 'woo_wallet_balance'" 
+        );
+        return $total ? (float) $total : 0.00;
     }
 }
