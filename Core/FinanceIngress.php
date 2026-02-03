@@ -11,6 +11,7 @@ class FinanceIngress {
     // STRICT GOVERNANCE: Impact Allowlist
     const ALLOWED_IMPACTS = [
         'earnings',                 // Order Net Earnings
+        'earnings_reversal',        // Order Refund/Return
         'commission',               // Platform Commission
         'shipping_charge',          // Vendor pays shipping (generic)
         'shipping_charge_buyer',    // Buyer pays shipping
