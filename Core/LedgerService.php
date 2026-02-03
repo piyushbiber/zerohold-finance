@@ -57,7 +57,7 @@ class LedgerService {
 
         try {
             // 1. Debit the Sender (From)
-            // DEBITS are never locked (Sender has already parted with the value)
+            // DEBITS can be locked if passed (e.g. shipping holds to reduce Pending Balance)
             $debit_inserted = $wpdb->insert(
                 $table,
                 [
@@ -68,8 +68,8 @@ class LedgerService {
                     'category'       => 'debit',
                     'impact'         => $impact,
                     'money_nature'   => $from_entity['nature'], // real vs claim
-                    'lock_type'      => 'none',
-                    'unlock_at'      => null,
+                    'lock_type'      => $lock_type,
+                    'unlock_at'      => $unlock_at,
                     'reference_type' => $reference_type,
                     'reference_id'   => $reference_id,
                     'reason'         => $reason,
@@ -78,10 +78,7 @@ class LedgerService {
             );
 
             // 2. Credit the Receiver (To)
-            // CREDITS are locked IF requested AND NOT a buyer (Buyers never sit in escrow)
-            $final_lock   = ( $to_entity['type'] === 'buyer' ) ? 'none' : $lock_type;
-            $final_unlock = ( $to_entity['type'] === 'buyer' ) ? null : $unlock_at;
-
+            // CREDITS are locked IF requested
             $credit_inserted = $wpdb->insert(
                 $table,
                 [
@@ -92,8 +89,8 @@ class LedgerService {
                     'category'       => 'credit',
                     'impact'         => $impact,
                     'money_nature'   => $to_entity['nature'], // real vs claim
-                    'lock_type'      => $final_lock,
-                    'unlock_at'      => $final_unlock,
+                    'lock_type'      => $lock_type,
+                    'unlock_at'      => $unlock_at,
                     'reference_type' => $reference_type,
                     'reference_id'   => $reference_id,
                     'reason'         => $reason,
