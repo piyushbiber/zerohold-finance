@@ -214,6 +214,26 @@ class AdminUI {
 
             <h1><?php _e( 'ZeroHold Finance - Central Bank', 'zerohold-finance' ); ?></h1>
             <p><?php _e( 'Real-time financial health of the platform derived from the immutable ledger.', 'zerohold-finance' ); ?></p>
+
+            <!-- Development Area: System Reset (MOVED TO TOP) -->
+            <div style="padding: 20px; border: 2px solid #d63638; border-radius: 8px; background: #fff; margin: 20px 0;">
+                <h3 style="color: #d63638; margin-top: 0;"><?php _e( '🛠️ Quick Reset (Development Phase Only)', 'zerohold-finance' ); ?></h3>
+                <div style="display: flex; gap: 15px; align-items: start;">
+                    <form method="post" style="background: #f6f7f7; padding: 10px; border-radius: 4px;">
+                        <?php wp_nonce_field( 'zh_reset_system_nonce' ); ?>
+                        <input type="hidden" name="clear_rules" value="no">
+                        <input type="submit" name="zh_reset_system" class="button button-secondary" value="Wipe Transactions (-30 Fix)" onclick="return confirm('Clear all ledger entries?')">
+                        <small style="display: block; margin-top: 5px;">Keeps Rules</small>
+                    </form>
+
+                    <form method="post" style="background: #fffafa; padding: 10px; border-radius: 4px; border: 1px solid #d63638;">
+                        <?php wp_nonce_field( 'zh_reset_system_nonce' ); ?>
+                        <input type="hidden" name="clear_rules" value="yes">
+                        <input type="submit" name="zh_reset_system" class="button button-link-delete" value="FULL SYSTEM WIPE" onclick="return confirm('Delete EVERYTHING (Rules + History)?')">
+                        <small style="display: block; margin-top: 5px; color: #d63638;">Deletes Rules</small>
+                    </form>
+                </div>
+            </div>
             
             <div class="zh-dashboard-grid">
                 
@@ -320,31 +340,6 @@ class AdminUI {
                 </table>
             </div>
 
-            <!-- Development Area: System Reset (Always visible in Dev Phase) -->
-            <div style="margin-top: 100px; padding: 30px; border: 2px dashed #72aee6; border-radius: 8px; background: #f0f6fb;">
-                <h3 style="color: #2271b1; margin-top: 0;"><?php _e( '🛠️ Development Tools: System Reset', 'zerohold-finance' ); ?></h3>
-                <p><?php _e( 'Quickly clear data during testing. Choose an option below:', 'zerohold-finance' ); ?></p>
-                
-                <div style="display: flex; gap: 20px; margin-top: 20px;">
-                    <!-- Option 1: Just Ledger -->
-                    <form method="post" style="flex: 1; padding: 15px; background: #fff; border: 1px solid #ccd0d4; border-radius: 6px;">
-                        <?php wp_nonce_field( 'zh_reset_system_nonce' ); ?>
-                        <input type="hidden" name="clear_rules" value="no">
-                        <h4 style="margin-top: 0;"><?php _e( 'Clear Ledger Only', 'zerohold-finance' ); ?></h4>
-                        <p style="font-size: 11px;"><?php _e( 'Wipes all transactions/history but KEEPS your Charge Rules.', 'zerohold-finance' ); ?></p>
-                        <input type="submit" name="zh_reset_system" class="button button-large" value="Wipe Transaction History" onclick="return confirm('Clear all ledger entries?')">
-                    </form>
-
-                    <!-- Option 2: Full Wipe -->
-                    <form method="post" style="flex: 1; padding: 15px; background: #fffcfc; border: 1px solid #d63638; border-radius: 6px;">
-                        <?php wp_nonce_field( 'zh_reset_system_nonce' ); ?>
-                        <input type="hidden" name="clear_rules" value="yes">
-                        <h4 style="margin-top: 0; color: #d63638;"><?php _e( 'Full System Wipe', 'zerohold-finance' ); ?></h4>
-                        <p style="font-size: 11px;"><?php _e( 'Deletes EVERYTHING (Rules, Ledger, History, Statements).', 'zerohold-finance' ); ?></p>
-                        <input type="submit" name="zh_reset_system" class="button button-link-delete" value="Wipe Everything" onclick="return confirm('⚠️ DANGEROUS: Wiping rules and ledger. Are you sure?')">
-                    </form>
-                </div>
-            </div>
         </div>
         <?php
     }
