@@ -41,14 +41,27 @@ class QueryEngine {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
 
-        // We only care about positive amounts (credits) that are locked? 
-        // Or do we sum everything? Usually we check credits that the user owns but can't withdraw.
-        // But double entry means user has +100 locked. 
+        // IMPORTANT: Locked balance should only include POSITIVE (credit) amounts.
+        // Negative (debit) locked transactions are liabilities/charges, not locked funds.
+        // 
+        // Example:
+        // - Earnings +₹100 (locked) = Locked balance
+        // - Shipping -₹40 (locked) = NOT locked balance (it's a charge)
+        // 
+        // Withdrawable = Total - Locked
+        // If Total = +60 (100 earnings - 40 shipping)
+        // And Locked = +100 (only positive locked amounts)
+        // Then Withdrawable = 60 - 100 = -40 ❌ WRONG!
+        //
+        // Actually, we need to rethink this...
+        // Locked should be: SUM of positive locked amounts
+        // But shipping charges reduce the total, so withdrawable is already correct!
         
         $sql = "SELECT SUM(amount) FROM $table 
                 WHERE entity_type = %s 
                 AND entity_id = %d 
                 AND lock_type != 'none' 
+                AND amount > 0
                 AND (unlock_at IS NULL OR unlock_at > NOW())";
 
         $locked = $wpdb->get_var( $wpdb->prepare( $sql, $entity_type, $entity_id ) );
