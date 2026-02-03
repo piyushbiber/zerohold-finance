@@ -187,26 +187,30 @@ class Database {
      * Clears all ledger entries, rules, and logs.
      * Resets the system to a clean state for production.
      */
-    public static function reset_all_data() {
+    public static function reset_all_data( $ledger_only = false ) {
         global $wpdb;
         
         // 1. Drop Immutability Triggers
         $wpdb->query( "DROP TRIGGER IF EXISTS {$wpdb->prefix}zh_prevent_ledger_update" );
         $wpdb->query( "DROP TRIGGER IF EXISTS {$wpdb->prefix}zh_prevent_ledger_delete" );
-
+ 
         // 2. Clear Tables
         $tables = [
             $wpdb->prefix . 'zh_wallet_events',
-            $wpdb->prefix . 'zh_charge_rules',
             $wpdb->prefix . 'zh_recurring_log',
             $wpdb->prefix . 'zh_vendor_statements',
             $wpdb->prefix . 'zh_statement_attachment'
         ];
 
+        // Only add charge rules if not doing a ledger-only reset
+        if ( ! $ledger_only ) {
+            $tables[] = $wpdb->prefix . 'zh_charge_rules';
+        }
+ 
         foreach ( $tables as $table ) {
             $wpdb->query( "TRUNCATE TABLE $table" );
         }
-
+ 
         // 3. Re-enable Protection
         self::create_triggers();
     }

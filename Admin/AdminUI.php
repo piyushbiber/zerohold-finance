@@ -123,7 +123,9 @@ class AdminUI {
         if ( defined('ZH_FINANCE_ALLOW_RESET') && ZH_FINANCE_ALLOW_RESET === true ) {
             if ( isset( $_POST['zh_reset_system'] ) && check_admin_referer( 'zh_reset_system_nonce' ) ) {
                 if ( sanitize_text_field( $_POST['reset_confirmation'] ) === 'RESET ALL DATA' ) {
-                    \ZeroHold\Finance\Core\Database::reset_all_data();
+                    $clear_rules = isset( $_POST['clear_rules'] ) ? true : false;
+                    \ZeroHold\Finance\Core\Database::reset_all_data( ! $clear_rules ); // reset_all_data( true ) means ledger only
+                    
                     wp_safe_redirect( add_query_arg( 'zh_msg', 'system_reset' ) );
                     exit;
                 } else {
@@ -329,12 +331,21 @@ class AdminUI {
             <?php if ( defined('ZH_FINANCE_ALLOW_RESET') && ZH_FINANCE_ALLOW_RESET === true ) : ?>
             <div style="margin-top: 100px; padding: 30px; border: 1px dashed #d63638; border-radius: 8px; background: #fffcfc;">
                 <h3 style="color: #d63638; margin-top: 0;"><?php _e( '☢️ System Reset (Developer Mode Only)', 'zerohold-finance' ); ?></h3>
-                <p><?php _e( 'Use this only BEFORE going to production. This will permanently DELETE all transactions, charge rules, and history.', 'zerohold-finance' ); ?></p>
+                <p><?php _e( 'Use this only BEFORE going to production. This will permanently DELETE selected financial data.', 'zerohold-finance' ); ?></p>
                 
-                <form method="post" id="zh_reset_form" style="display: flex; gap: 15px; align-items: center;">
+                <form method="post" id="zh_reset_form" style="display: flex; flex-direction: column; gap: 15px;">
                     <?php wp_nonce_field( 'zh_reset_system_nonce' ); ?>
-                    <input type="text" name="reset_confirmation" placeholder="Type 'RESET ALL DATA' to confirm" style="width: 250px;">
-                    <input type="submit" name="zh_reset_system" class="button button-link-delete" value="WIPE & RESET FINANCE SYSTEM" onclick="return confirm('EXTREMELY DANGEROUS: Are you absolutely sure?')">
+                    
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" name="clear_rules" id="clear_rules" value="1">
+                        <label for="clear_rules"><strong>Clear Charge Rules too?</strong> (Warning: This deletes all automated commissions you set up)</label>
+                    </div>
+
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <input type="text" name="reset_confirmation" placeholder="Type 'RESET ALL DATA' to confirm" style="width: 250px;">
+                        <input type="submit" name="zh_reset_system" class="button button-link-delete" value="WIPE & RESET FINANCE SYSTEM" onclick="return confirm('EXTREMELY DANGEROUS: Are you absolutely sure?')">
+                    </div>
+                    <p style="font-size: 11px; color: #666; margin: 0;">If "Clear Charge Rules" is unchecked, only the transaction history (ledger) will be wiped.</p>
                 </form>
             </div>
             <?php endif; ?>
