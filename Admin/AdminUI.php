@@ -119,20 +119,13 @@ class AdminUI {
             }
         }
 
-        // 4. Handle System Reset (DEVELOPER ONLY - Protected by constant)
-        if ( defined('ZH_FINANCE_ALLOW_RESET') && (ZH_FINANCE_ALLOW_RESET === true || ZH_FINANCE_ALLOW_RESET === 'true' || ZH_FINANCE_ALLOW_RESET == 1) ) {
-            if ( isset( $_POST['zh_reset_system'] ) && check_admin_referer( 'zh_reset_system_nonce' ) ) {
-                if ( sanitize_text_field( $_POST['reset_confirmation'] ) === 'RESET ALL DATA' ) {
-                    $clear_rules = isset( $_POST['clear_rules'] ) ? true : false;
-                    \ZeroHold\Finance\Core\Database::reset_all_data( ! $clear_rules ); // reset_all_data( true ) means ledger only
-                    
-                    wp_safe_redirect( add_query_arg( 'zh_msg', 'system_reset' ) );
-                    exit;
-                } else {
-                    wp_safe_redirect( add_query_arg( 'zh_error', 'wrong_confirmation' ) );
-                    exit;
-                }
-            }
+        // 4. Handle System Reset (Simplified for Development)
+        if ( isset( $_POST['zh_reset_system'] ) && check_admin_referer( 'zh_reset_system_nonce' ) ) {
+            $clear_rules = isset( $_POST['clear_rules'] ) && $_POST['clear_rules'] === 'yes';
+            \ZeroHold\Finance\Core\Database::reset_all_data( ! $clear_rules ); // reset_all_data( true ) means ledger only
+            
+            wp_safe_redirect( add_query_arg( 'zh_msg', 'system_reset' ) );
+            exit;
         }
     }
 
@@ -221,17 +214,6 @@ class AdminUI {
 
             <h1><?php _e( 'ZeroHold Finance - Central Bank', 'zerohold-finance' ); ?></h1>
             <p><?php _e( 'Real-time financial health of the platform derived from the immutable ledger.', 'zerohold-finance' ); ?></p>
-            
-            <!-- Security Status Indicator -->
-            <div style="background: #fff; border-left: 4px solid <?php echo defined('ZH_FINANCE_ALLOW_RESET') ? '#1a7f37' : '#d63638'; ?>; padding: 10px 15px; margin: 20px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.04);">
-                <strong><?php _e( 'Physical Lock Status:', 'zerohold-finance' ); ?></strong>
-                <?php if ( defined('ZH_FINANCE_ALLOW_RESET') ) : ?>
-                    <span style="color: #1a7f37;">✅ <?php _e( 'Developer Mode Active (Reset Tool Visible at Bottom)', 'zerohold-finance' ); ?></span>
-                <?php else : ?>
-                    <span style="color: #d63638;">🔒 <?php _e( 'Production Mode Active (Reset Tool Hidden)', 'zerohold-finance' ); ?></span>
-                    <br/><small style="color: #646970;">To enable reset for testing, add <code>define( 'ZH_FINANCE_ALLOW_RESET', true );</code> to <strong>wp-config.php</strong></small>
-                <?php endif; ?>
-            </div>
             
             <div class="zh-dashboard-grid">
                 
@@ -338,28 +320,31 @@ class AdminUI {
                 </table>
             </div>
 
-            <!-- Dangerous Area: System Reset (Only shown if constant is set) -->
-            <?php if ( defined('ZH_FINANCE_ALLOW_RESET') && (ZH_FINANCE_ALLOW_RESET === true || ZH_FINANCE_ALLOW_RESET === 'true' || ZH_FINANCE_ALLOW_RESET == 1) ) : ?>
-            <div style="margin-top: 100px; padding: 30px; border: 1px dashed #d63638; border-radius: 8px; background: #fffcfc;">
-                <h3 style="color: #d63638; margin-top: 0;"><?php _e( '☢️ System Reset (Developer Mode Only)', 'zerohold-finance' ); ?></h3>
-                <p><?php _e( 'Use this only BEFORE going to production. This will permanently DELETE selected financial data.', 'zerohold-finance' ); ?></p>
+            <!-- Development Area: System Reset (Always visible in Dev Phase) -->
+            <div style="margin-top: 100px; padding: 30px; border: 2px dashed #72aee6; border-radius: 8px; background: #f0f6fb;">
+                <h3 style="color: #2271b1; margin-top: 0;"><?php _e( '🛠️ Development Tools: System Reset', 'zerohold-finance' ); ?></h3>
+                <p><?php _e( 'Quickly clear data during testing. Choose an option below:', 'zerohold-finance' ); ?></p>
                 
-                <form method="post" id="zh_reset_form" style="display: flex; flex-direction: column; gap: 15px;">
-                    <?php wp_nonce_field( 'zh_reset_system_nonce' ); ?>
-                    
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" name="clear_rules" id="clear_rules" value="1">
-                        <label for="clear_rules"><strong>Clear Charge Rules too?</strong> (Warning: This deletes all automated commissions you set up)</label>
-                    </div>
+                <div style="display: flex; gap: 20px; margin-top: 20px;">
+                    <!-- Option 1: Just Ledger -->
+                    <form method="post" style="flex: 1; padding: 15px; background: #fff; border: 1px solid #ccd0d4; border-radius: 6px;">
+                        <?php wp_nonce_field( 'zh_reset_system_nonce' ); ?>
+                        <input type="hidden" name="clear_rules" value="no">
+                        <h4 style="margin-top: 0;"><?php _e( 'Clear Ledger Only', 'zerohold-finance' ); ?></h4>
+                        <p style="font-size: 11px;"><?php _e( 'Wipes all transactions/history but KEEPS your Charge Rules.', 'zerohold-finance' ); ?></p>
+                        <input type="submit" name="zh_reset_system" class="button button-large" value="Wipe Transaction History" onclick="return confirm('Clear all ledger entries?')">
+                    </form>
 
-                    <div style="display: flex; gap: 15px; align-items: center;">
-                        <input type="text" name="reset_confirmation" placeholder="Type 'RESET ALL DATA' to confirm" style="width: 250px;">
-                        <input type="submit" name="zh_reset_system" class="button button-link-delete" value="WIPE & RESET FINANCE SYSTEM" onclick="return confirm('EXTREMELY DANGEROUS: Are you absolutely sure?')">
-                    </div>
-                    <p style="font-size: 11px; color: #666; margin: 0;">If "Clear Charge Rules" is unchecked, only the transaction history (ledger) will be wiped.</p>
-                </form>
+                    <!-- Option 2: Full Wipe -->
+                    <form method="post" style="flex: 1; padding: 15px; background: #fffcfc; border: 1px solid #d63638; border-radius: 6px;">
+                        <?php wp_nonce_field( 'zh_reset_system_nonce' ); ?>
+                        <input type="hidden" name="clear_rules" value="yes">
+                        <h4 style="margin-top: 0; color: #d63638;"><?php _e( 'Full System Wipe', 'zerohold-finance' ); ?></h4>
+                        <p style="font-size: 11px;"><?php _e( 'Deletes EVERYTHING (Rules, Ledger, History, Statements).', 'zerohold-finance' ); ?></p>
+                        <input type="submit" name="zh_reset_system" class="button button-link-delete" value="Wipe Everything" onclick="return confirm('⚠️ DANGEROUS: Wiping rules and ledger. Are you sure?')">
+                    </form>
+                </div>
             </div>
-            <?php endif; ?>
         </div>
         <?php
     }
