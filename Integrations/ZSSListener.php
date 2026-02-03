@@ -55,33 +55,27 @@ class ZSSListener {
         $order->save();
         error_log( "ZH Finance: Marked Order #" . $data['order_id'] . " as shipping recorded" );
 
-        /**
-         * IMPORTANT: Vendor Shipping Charges are NOT recorded as ledger transactions.
-         * 
-         * Mental Model:
-         * - Vendor Earnings (from orders) = Vendor's money (goes to escrow → withdrawable)
-         * - Shipping charges, commissions, penalties = Vendor payables to platform
-         * 
-         * Shipping charges should NOT reduce the vendor's wallet balance.
-         * They are tracked separately and settled during withdrawal.
-         * 
-         * The charge is already stored in order meta: _zh_shipping_cost
-         * It will be displayed in the vendor statement via DokanStatementIntegration
-         * And deducted during withdrawal processing.
-         */
-        
-        // REMOVED: Vendor Charge ledger entry (was incorrectly reducing withdrawable balance)
-        // if ( $data['charge_vendor'] > 0 ) {
-        //     FinanceIngress::handle_event([
-        //         'from' => [ 'type' => 'vendor', 'id' => $data['vendor_id'], 'nature' => 'claim' ],
-        //         'to'   => [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ],
-        //         'amount' => $data['charge_vendor'],
-        //         'impact' => 'shipping_charge',
-        //         'reference_type' => 'order',
-        //         'reference_id' => $data['order_id'],
-        //         'lock_type' => 'order_hold'
-        //     ]);
-        // }
+        // 1. Vendor Charge (Vendor Claim -> Admin Real)
+        // This is LOCKED so it affects locked balance, not withdrawable balance
+        if ( $data['charge_vendor'] > 0 ) {
+            error_log( "ZH Finance: Recording vendor shipping charge: ₹" . $data['charge_vendor'] . " for Vendor #" . $data['vendor_id'] );
+            
+            $result = FinanceIngress::handle_event([
+                'from' => [ 'type' => 'vendor', 'id' => $data['vendor_id'], 'nature' => 'claim' ],
+                'to'   => [ 'type' => 'admin', 'id' => 0, 'nature' => 'real' ],
+                'amount' => $data['charge_vendor'],
+                'impact' => 'shipping_charge',
+                'reference_type' => 'order',
+                'reference_id' => $data['order_id'],
+                'lock_type' => 'order_hold' // LOCKED - affects locked balance only
+            ]);
+            
+            if ( is_wp_error( $result ) ) {
+                error_log( "ZH Finance: ERROR recording vendor shipping charge: " . $result->get_error_message() );
+            } else {
+                error_log( "ZH Finance: Successfully recorded vendor shipping charge" );
+            }
+        }
 
         // 2. Actual Cost (Admin Real -> Outside External)
         // This records the actual cost paid to the shipping platform

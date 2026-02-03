@@ -31,60 +31,17 @@ if ( $active_tab === 'overview' ) {
     $limit = 20;
     $offset = ( $page - 1 ) * $limit;
 
-    // Fetch ledger events
-    $ledger_events = $wpdb->get_results( $wpdb->prepare(
-        "SELECT * FROM $table WHERE entity_type = 'vendor' AND entity_id = %d ORDER BY created_at DESC",
-        $vendor_id
+    $events = $wpdb->get_results( $wpdb->prepare(
+        "SELECT * FROM $table WHERE entity_type = 'vendor' AND entity_id = %d ORDER BY created_at DESC LIMIT %d, %d",
+        $vendor_id, 
+        $offset, 
+        $limit
     ) );
     
-    // Fetch shipping charges from order meta (not in ledger)
-    $shipping_charges = $wpdb->get_results( $wpdb->prepare(
-        "SELECT 
-            pm1.post_id as order_id,
-            pm1.meta_value as shipping_cost,
-            pm2.meta_value as shipping_date,
-            'forward' as shipping_type
-        FROM {$wpdb->postmeta} pm1
-        INNER JOIN {$wpdb->postmeta} pm2 ON pm1.post_id = pm2.post_id AND pm2.meta_key = '_zh_shipping_date'
-        INNER JOIN {$wpdb->postmeta} pm3 ON pm1.post_id = pm3.post_id AND pm3.meta_key = '_dokan_vendor_id'
-        WHERE pm1.meta_key = '_zh_shipping_cost'
-        AND pm3.meta_value = %d
-        ORDER BY pm2.meta_value DESC",
+    $total_rows = $wpdb->get_var( $wpdb->prepare(
+        "SELECT COUNT(*) FROM $table WHERE entity_type = 'vendor' AND entity_id = %d",
         $vendor_id
     ) );
-    
-    // Convert shipping charges to event format
-    $shipping_events = [];
-    foreach ( $shipping_charges as $ship ) {
-        $shipping_events[] = (object) [
-            'id' => 0,
-            'entity_type' => 'vendor',
-            'entity_id' => $vendor_id,
-            'amount' => -1 * (float) $ship->shipping_cost, // Negative for display
-            'money_nature' => 'claim',
-            'impact' => 'shipping_charge',
-            'reference_type' => 'order',
-            'reference_id' => $ship->order_id,
-            'lock_type' => 'settled',
-            'unlock_at' => null,
-            'reason' => null,
-            'admin_id' => null,
-            'group_id' => null,
-            'created_at' => $ship->shipping_date,
-            'is_shipping' => true // Flag to identify shipping charges
-        ];
-    }
-    
-    // Merge and sort by date
-    $all_events = array_merge( $ledger_events, $shipping_events );
-    usort( $all_events, function( $a, $b ) {
-        return strtotime( $b->created_at ) - strtotime( $a->created_at );
-    });
-    
-    $total_rows = count( $all_events );
-    
-    // Paginate
-    $events = array_slice( $all_events, $offset, $limit );
 }
 ?>
 
