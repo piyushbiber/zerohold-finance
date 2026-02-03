@@ -43,54 +43,67 @@ class WooCommerceListener {
             return; // Not a vendor order?
         }
 
-        // Calculate Net Earnings (Base Order Value)
-        // Note: Dokan usually calculates this as Order Total - Admin Fees.
-        // STRICT RULE: We record the FULL Net Sales as "Earnings" (Claim). 
-        // Admin Commission is a separate DEBIT event.
-        // However, standard accounting usually credits Vendor with (Total - Comm).
-        // The Plan says: "Amount: Net, Impact: earnings".
-        // Let's use the Order Total for now, and rely on ChargeEngine to debit commission later?
-        // OR does "Net" mean the final payout amount?
-        // User Plan: "Order Created -> Emit Earnings (Locked: order_hold)".
-        // It implies the "Gross Earning" belonging to vendor.
+        // Get order amounts
+        $order_subtotal = $order->get_subtotal() - $order->get_total_refunded();
+        $shipping_total = $order->get_shipping_total();
         
-        $amount = $order->get_total() - $order->get_total_refunded(); // Simplified.
-        
-        // In a Split Order system (Dokan), the order total IS the vendor's sub-order total.
-        
-        $payload = [
-            'from' => [
-                'type'   => 'outside',
-                'id'     => 0,
-                'nature' => 'real' // Value enters the platform ecosystem
-            ],
-            'to' => [
-                'type'   => 'vendor',
-                'id'     => $vendor_id,
-                'nature' => 'claim' // Creating internal obligation to vendor
-            ],
-            'amount'         => $amount,
-            'impact'         => 'earnings',
-            'reference_type' => 'order',
-            'reference_id'   => $order_id,
-            'lock_type'      => 'order_hold',
-            'unlock_at'      => null
-        ];
-
-        $result = FinanceIngress::handle_event( $payload );
-
-        if ( ! is_wp_error( $result ) ) {
-            $order->update_meta_data( '_zh_finance_earnings_recorded', true );
-            $order->update_meta_data( '_zh_finance_group_id', $result );
-            $order->save();
-
-            // Trigger automation (e.g., Platform Commissions)
-            do_action( 'zh_finance_event', 'zh_event_order_completed', [
-                'order_id'    => $order_id,
-                'vendor_id'   => $vendor_id,
-                'customer_id' => $order->get_customer_id() ?: 0
-            ] );
+        // 1. Record Product Earnings (Subtotal)
+        if ( $order_subtotal > 0 ) {
+            $earnings_payload = [
+                'from' => [
+                    'type'   => 'outside',
+                    'id'     => 0,
+                    'nature' => 'real'
+                ],
+                'to' => [
+                    'type'   => 'vendor',
+                    'id'     => $vendor_id,
+                    'nature' => 'claim'
+                ],
+                'amount'         => $order_subtotal,
+                'impact'         => 'earnings',
+                'reference_type' => 'order',
+                'reference_id'   => $order_id,
+                'lock_type'      => 'order_hold',
+                'unlock_at'      => null
+            ];
+            
+            FinanceIngress::handle_event( $earnings_payload );
         }
+        
+        // 2. Record Shipping Charge (if applicable)
+        if ( $shipping_total > 0 ) {
+            $shipping_payload = [
+                'from' => [
+                    'type'   => 'outside',
+                    'id'     => 0,
+                    'nature' => 'real'
+                ],
+                'to' => [
+                    'type'   => 'vendor',
+                    'id'     => $vendor_id,
+                    'nature' => 'claim'
+                ],
+                'amount'         => $shipping_total,
+                'impact'         => 'shipping_charge_buyer',
+                'reference_type' => 'order',
+                'reference_id'   => $order_id,
+                'lock_type'      => 'order_hold',
+                'unlock_at'      => null
+            ];
+            
+            FinanceIngress::handle_event( $shipping_payload );
+        }
+
+        // Mark as recorded
+        $order->update_meta_data( '_zh_finance_earnings_recorded', true );
+        $order->save();
+
+        // Trigger automation (e.g., Platform Commissions)
+        do_action( 'zh_finance_event', 'zh_event_order_completed', [
+            'order_id'    => $order_id,
+            'vendor_id'   => $vendor_id,
+            'customer_id' => $order->get_customer_id() ?: 0
+        ] );
     }
 }
-
