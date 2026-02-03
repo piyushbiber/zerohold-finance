@@ -105,6 +105,13 @@ class TeraWalletListener {
         } else {
             // PULL: TeraWallet Debit
             // If it's for an order, WooCommerceListener handles the move from Buyer -> Vendor.
+            // We detect this by checking if the details contain an order ID or known WooCommerce pattern.
+            // Standard TeraWallet order payment description: "For order #123 payment" or similar.
+            if ( preg_match( '/order #?\d+/i', $transaction->details ) ) {
+                \ZeroHold\Finance\Core\LedgerService::$is_syncing = false;
+                return;
+            }
+
             // If it's a general debit, we move from Buyer Claim to Admin Claim (reducing liabilities).
             FinanceIngress::handle_event([
                 'from' => [ 'type' => 'buyer', 'id' => $user_id, 'nature' => 'claim' ],

@@ -126,19 +126,20 @@ class QueryEngine {
             "SELECT SUM(amount) FROM $table WHERE entity_type = 'admin' AND money_nature = 'real'" 
         );
 
-        // --- SUB-CARDS (Always Absolute for Display) ---
+        // --- SUB-CARDS (Always Non-Negative for Display) ---
 
         // Vendor Liabilities
-        $metrics['vendor_liabilities'] = abs( (float) $wpdb->get_var(
+        $metrics['vendor_liabilities'] = max( 0, (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table WHERE entity_type = 'vendor' AND money_nature = 'claim'"
         ) );
 
         // Buyer Liabilities
-        $metrics['buyer_liabilities'] = abs( (float) $wpdb->get_var(
+        $metrics['buyer_liabilities'] = max( 0, (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table WHERE entity_type = 'buyer' AND money_nature = 'claim'"
         ) );
 
         // Vendor Escrow
+        // Strictly only Vendor funds sit in escrow.
         $metrics['vendor_escrow'] = abs( (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table 
              WHERE entity_type = 'vendor' 
@@ -147,20 +148,16 @@ class QueryEngine {
         ) );
 
         // Buyer Escrow
-        $metrics['buyer_escrow'] = abs( (float) $wpdb->get_var(
-            "SELECT SUM(amount) FROM $table 
-             WHERE entity_type = 'buyer' 
-             AND lock_type != 'none' 
-             AND (unlock_at IS NULL OR unlock_at > NOW())"
-        ) );
+        // Hard-enforce zero for Buyers per Phase 9 Governance.
+        $metrics['buyer_escrow'] = 0.00;
 
         // --- CALCULATION REFINEMENT ---
 
-        // Recalculate Total Liabilities & Escrow as sum of absolute sub-metrics
+        // Recalculate Total Liabilities & Escrow
         $metrics['total_liabilities'] = $metrics['vendor_liabilities'] + $metrics['buyer_liabilities'];
-        $metrics['total_escrow']      = $metrics['vendor_escrow'] + $metrics['buyer_escrow'];
+        $metrics['total_escrow']      = $metrics['vendor_escrow']; // Strictly vendor-holdings.
 
-        // 4. Platform Net Profit = Bank Pool - Platform Liabilities
+        // 4. Platform Net Profit = Bank Pool - Total Liabilities
         $metrics['platform_profit'] = $metrics['total_real'] - $metrics['total_liabilities'];
 
         return $metrics;

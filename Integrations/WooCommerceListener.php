@@ -83,6 +83,13 @@ class WooCommerceListener {
             $order->update_meta_data( '_zh_finance_earnings_recorded', true );
             $order->update_meta_data( '_zh_finance_group_id', $result );
             $order->save();
+
+            // Trigger automation (e.g., Platform Commissions)
+            do_action( 'zh_finance_event', 'zh_event_order_completed', [
+                'order_id'    => $order_id,
+                'vendor_id'   => $vendor_id,
+                'customer_id' => $order->get_customer_id() ?: 0
+            ] );
         }
     }
 }
