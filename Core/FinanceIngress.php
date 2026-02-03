@@ -12,6 +12,7 @@ class FinanceIngress {
     const ALLOWED_IMPACTS = [
         'earnings',                 // Order Net Earnings
         'commission',               // Platform Commission
+        'shipping_charge',          // Vendor pays shipping (generic)
         'shipping_charge_buyer',    // Buyer pays shipping
         'shipping_charge_vendor',   // Vendor pays shipping
         'shipping_cost_actual',     // Real cost to courier
