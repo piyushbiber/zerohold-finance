@@ -43,67 +43,46 @@ class WooCommerceListener {
             return; // Not a vendor order?
         }
 
-        // Get order amounts
-        $order_subtotal = $order->get_subtotal() - $order->get_total_refunded();
-        $shipping_total = $order->get_shipping_total();
+        // In a multi-vendor marketplace:
+        // - Vendor receives ONLY the product subtotal (their earnings)
+        // - Shipping is handled by admin/platform, NOT credited to vendor
+        $vendor_earnings = $order->get_subtotal() - $order->get_total_refunded();
         
-        // 1. Record Product Earnings (Subtotal)
-        if ( $order_subtotal > 0 ) {
-            $earnings_payload = [
-                'from' => [
-                    'type'   => 'outside',
-                    'id'     => 0,
-                    'nature' => 'real'
-                ],
-                'to' => [
-                    'type'   => 'vendor',
-                    'id'     => $vendor_id,
-                    'nature' => 'claim'
-                ],
-                'amount'         => $order_subtotal,
-                'impact'         => 'earnings',
-                'reference_type' => 'order',
-                'reference_id'   => $order_id,
-                'lock_type'      => 'order_hold',
-                'unlock_at'      => null
-            ];
-            
-            FinanceIngress::handle_event( $earnings_payload );
+        if ( $vendor_earnings <= 0 ) {
+            return;
         }
         
-        // 2. Record Shipping Charge (if applicable)
-        if ( $shipping_total > 0 ) {
-            $shipping_payload = [
-                'from' => [
-                    'type'   => 'outside',
-                    'id'     => 0,
-                    'nature' => 'real'
-                ],
-                'to' => [
-                    'type'   => 'vendor',
-                    'id'     => $vendor_id,
-                    'nature' => 'claim'
-                ],
-                'amount'         => $shipping_total,
-                'impact'         => 'shipping_charge_buyer',
-                'reference_type' => 'order',
-                'reference_id'   => $order_id,
-                'lock_type'      => 'order_hold',
-                'unlock_at'      => null
-            ];
-            
-            FinanceIngress::handle_event( $shipping_payload );
+        $payload = [
+            'from' => [
+                'type'   => 'outside',
+                'id'     => 0,
+                'nature' => 'real'
+            ],
+            'to' => [
+                'type'   => 'vendor',
+                'id'     => $vendor_id,
+                'nature' => 'claim'
+            ],
+            'amount'         => $vendor_earnings,
+            'impact'         => 'earnings',
+            'reference_type' => 'order',
+            'reference_id'   => $order_id,
+            'lock_type'      => 'order_hold',
+            'unlock_at'      => null
+        ];
+
+        $result = FinanceIngress::handle_event( $payload );
+
+        if ( ! is_wp_error( $result ) ) {
+            $order->update_meta_data( '_zh_finance_earnings_recorded', true );
+            $order->save();
+
+            // Trigger automation (e.g., Platform Commissions)
+            do_action( 'zh_finance_event', 'zh_event_order_completed', [
+                'order_id'    => $order_id,
+                'vendor_id'   => $vendor_id,
+                'customer_id' => $order->get_customer_id() ?: 0
+            ] );
         }
-
-        // Mark as recorded
-        $order->update_meta_data( '_zh_finance_earnings_recorded', true );
-        $order->save();
-
-        // Trigger automation (e.g., Platform Commissions)
-        do_action( 'zh_finance_event', 'zh_event_order_completed', [
-            'order_id'    => $order_id,
-            'vendor_id'   => $vendor_id,
-            'customer_id' => $order->get_customer_id() ?: 0
-        ] );
     }
 }
