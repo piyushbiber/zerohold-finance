@@ -62,6 +62,11 @@ class ZeroHold_Finance {
     }
 
     public function on_plugins_loaded() {
+        // Load migration scripts
+        if (is_admin()) {
+            require_once ZH_FINANCE_PATH . 'migrations/fix-shipping-lock-types.php';
+        }
+        
         // Initialize Core Services
         // QueryEngine is a static helper, no init needed.
         
