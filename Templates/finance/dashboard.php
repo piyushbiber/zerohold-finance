@@ -11,10 +11,10 @@ use ZeroHold\Finance\Core\QueryEngine;
 $vendor_id = dokan_get_current_user_id();
 
 // Fetch Data
-// ... data fetching logic ...
 $wallet_balance = QueryEngine::get_wallet_balance( 'vendor', $vendor_id );
 $locked_balance = QueryEngine::get_locked_balance( 'vendor', $vendor_id );
 $withdrawable   = QueryEngine::get_withdrawable_balance( 'vendor', $vendor_id );
+$net_position   = QueryEngine::get_net_position( 'vendor', $vendor_id );
 
 // Tab Handling
 $active_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'overview';
@@ -74,10 +74,10 @@ if ( $active_tab === 'overview' ) {
             <?php if ( $active_tab === 'overview' ) : ?>
                 
                 <div class="zh-stats-grid">
-                    <!-- Withdrawable Card -->
+                    <!-- Available Balance Card -->\r
                     <div class="zh-card">
                         <div class="zh-card-label">
-                            <i class="fas fa-wallet"></i> <?php _e( 'Withdrawable Balance', 'zerohold-finance' ); ?>
+                            <i class="fas fa-wallet"></i> <?php _e( 'Available Balance', 'zerohold-finance' ); ?>
                         </div>
                         <div class="zh-card-value" style="color: #48bb78;">
                             <?php echo wc_price( $withdrawable ); ?>
@@ -88,15 +88,26 @@ if ( $active_tab === 'overview' ) {
                         </a>
                     </div>
 
-                    <!-- Locked Card -->
+                    <!-- Pending Balance Card (Renamed from Locked Reserve) -->
                     <div class="zh-card">
                         <div class="zh-card-label">
-                            <i class="fas fa-lock"></i> <?php _e( 'Locked Reserve', 'zerohold-finance' ); ?>
+                            <i class="fas fa-clock"></i> <?php _e( 'Pending Balance', 'zerohold-finance' ); ?>
                         </div>
                         <div class="zh-card-value" style="color: #ed8936;">
                             <?php echo wc_price( $locked_balance ); ?>
                         </div>
-                        <div class="zh-card-sub"><?php _e( 'Held until return period ends', 'zerohold-finance' ); ?></div>
+                        <div class="zh-card-sub"><?php _e( 'From active orders (return window)', 'zerohold-finance' ); ?></div>
+                    </div>
+
+                    <!-- Net Position Card (NEW) -->
+                    <div class="zh-card">
+                        <div class="zh-card-label">
+                            <i class="fas fa-chart-line"></i> <?php _e( 'Net Position', 'zerohold-finance' ); ?>
+                        </div>
+                        <div class="zh-card-value" style="color: <?php echo $net_position < 0 ? '#e53e3e' : '#38a169'; ?>;">
+                            <?php echo wc_price( $net_position ); ?>
+                        </div>
+                        <div class="zh-card-sub"><?php _e( 'Overall profit/loss (includes fees)', 'zerohold-finance' ); ?></div>
                     </div>
                 </div>
 

@@ -85,6 +85,35 @@ class QueryEngine {
     }
 
     /**
+     * Get Net Position (Profit/Loss).
+     * 
+     * This shows the vendor's OVERALL position including platform charges.
+     * Unlike withdrawable/pending balances, this CAN be negative.
+     * 
+     * Formula: Total Earnings - Shipping - Commission - Penalties - Returns
+     * 
+     * This is for VISIBILITY only, NOT for withdrawals.
+     *
+     * @param string $entity_type
+     * @param int $entity_id
+     * @return float Can be negative
+     */
+    public static function get_net_position( $entity_type, $entity_id ) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'zh_wallet_events';
+
+        // Net Position = SUM of ALL amounts (including platform charges)
+        // This shows the true profit/loss picture
+        $net = $wpdb->get_var( $wpdb->prepare(
+            "SELECT SUM(amount) FROM $table WHERE entity_type = %s AND entity_id = %d",
+            $entity_type,
+            $entity_id
+        ) );
+
+        return $net ? (float) $net : 0.00;
+    }
+
+    /**
      * Get Profit & Loss Breakdown for Admin (Central Bank).
      * Grouped by Impact.
      *
