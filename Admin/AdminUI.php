@@ -120,7 +120,7 @@ class AdminUI {
         }
 
         // 4. Handle System Reset (DEVELOPER ONLY - Protected by constant)
-        if ( defined('ZH_FINANCE_ALLOW_RESET') && ZH_FINANCE_ALLOW_RESET === true ) {
+        if ( defined('ZH_FINANCE_ALLOW_RESET') && (ZH_FINANCE_ALLOW_RESET === true || ZH_FINANCE_ALLOW_RESET === 'true' || ZH_FINANCE_ALLOW_RESET == 1) ) {
             if ( isset( $_POST['zh_reset_system'] ) && check_admin_referer( 'zh_reset_system_nonce' ) ) {
                 if ( sanitize_text_field( $_POST['reset_confirmation'] ) === 'RESET ALL DATA' ) {
                     $clear_rules = isset( $_POST['clear_rules'] ) ? true : false;
@@ -221,6 +221,17 @@ class AdminUI {
 
             <h1><?php _e( 'ZeroHold Finance - Central Bank', 'zerohold-finance' ); ?></h1>
             <p><?php _e( 'Real-time financial health of the platform derived from the immutable ledger.', 'zerohold-finance' ); ?></p>
+            
+            <!-- Security Status Indicator -->
+            <div style="background: #fff; border-left: 4px solid <?php echo defined('ZH_FINANCE_ALLOW_RESET') ? '#1a7f37' : '#d63638'; ?>; padding: 10px 15px; margin: 20px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.04);">
+                <strong><?php _e( 'Physical Lock Status:', 'zerohold-finance' ); ?></strong>
+                <?php if ( defined('ZH_FINANCE_ALLOW_RESET') ) : ?>
+                    <span style="color: #1a7f37;">✅ <?php _e( 'Developer Mode Active (Reset Tool Visible at Bottom)', 'zerohold-finance' ); ?></span>
+                <?php else : ?>
+                    <span style="color: #d63638;">🔒 <?php _e( 'Production Mode Active (Reset Tool Hidden)', 'zerohold-finance' ); ?></span>
+                    <br/><small style="color: #646970;">To enable reset for testing, add <code>define( 'ZH_FINANCE_ALLOW_RESET', true );</code> to <strong>wp-config.php</strong></small>
+                <?php endif; ?>
+            </div>
             
             <div class="zh-dashboard-grid">
                 
@@ -328,7 +339,7 @@ class AdminUI {
             </div>
 
             <!-- Dangerous Area: System Reset (Only shown if constant is set) -->
-            <?php if ( defined('ZH_FINANCE_ALLOW_RESET') && ZH_FINANCE_ALLOW_RESET === true ) : ?>
+            <?php if ( defined('ZH_FINANCE_ALLOW_RESET') && (ZH_FINANCE_ALLOW_RESET === true || ZH_FINANCE_ALLOW_RESET === 'true' || ZH_FINANCE_ALLOW_RESET == 1) ) : ?>
             <div style="margin-top: 100px; padding: 30px; border: 1px dashed #d63638; border-radius: 8px; background: #fffcfc;">
                 <h3 style="color: #d63638; margin-top: 0;"><?php _e( '☢️ System Reset (Developer Mode Only)', 'zerohold-finance' ); ?></h3>
                 <p><?php _e( 'Use this only BEFORE going to production. This will permanently DELETE selected financial data.', 'zerohold-finance' ); ?></p>
