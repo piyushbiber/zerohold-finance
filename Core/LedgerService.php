@@ -56,10 +56,15 @@ class LedgerService {
         // Start Transaction
         $wpdb->query( 'START TRANSACTION' );
 
-        // --- FINAL PRODUCTION GUARD: Force order_hold for known Order-based charges ---
-        $locked_impacts = [ 'shipping_charge', 'shipping_charge_vendor', 'shipping_charge_buyer', 'commission', 'platform_fee', 'sms' ];
-        if ( $reference_type === 'order' && in_array( $impact, $locked_impacts ) ) {
+        // --- FINAL PRODUCTION GUARD: Synchronized Atomic Unlocking ---
+        if ( $reference_type === 'order' ) {
             $lock_type = 'order_hold';
+
+            // Check if the order has a canonical escrow release time
+            $order_unlock = get_post_meta( $reference_id, '_zh_order_unlock_at', true );
+            if ( ! empty( $order_unlock ) ) {
+                $unlock_at = $order_unlock; // Force the charge logic to use the exact same second as the earnings
+            }
         }
 
         try {

@@ -73,6 +73,10 @@ class WooCommerceListener {
         $escrow_unit  = get_option( 'zh_finance_escrow_unit', 'days' );
         $unlock_at    = date( 'Y-m-d H:i:s', strtotime( "+$escrow_value $escrow_unit" ) );
 
+        // Persist the canonical unlock time for synchronization
+        $order->update_meta_data( '_zh_order_unlock_at', $unlock_at );
+        $order->save();
+
         $payload = [
             'from' => [
                 'type'   => 'outside',
@@ -96,6 +100,18 @@ class WooCommerceListener {
         $result = FinanceIngress::handle_event( $payload );
 
         if ( ! is_wp_error( $result ) ) {
+            // --- ATOMIC RETROACTIVE SYNC ---
+            // Find all previously recorded charges for this order (e.g. shipping in processing)
+            // and anchor them to the same release time as the earnings.
+            $wpdb->update(
+                $table,
+                [ 'unlock_at' => $unlock_at ],
+                [ 
+                    'reference_type' => 'order',
+                    'reference_id'   => $order_id
+                ]
+            );
+
             // Trigger automation (e.g., Platform Commissions)
             do_action( 'zh_finance_event', 'zh_event_order_completed', [
                 'order_id'    => $order_id,
