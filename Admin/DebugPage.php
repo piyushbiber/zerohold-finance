@@ -36,29 +36,28 @@ class DebugPage {
         if (!$vendor_id) {
             echo '<h2>All Vendors with Finance Activity</h2>';
             
-            $vendors = $wpdb->get_results(
-                "SELECT DISTINCT entity_id, 
-                (SELECT SUM(amount) FROM $table WHERE entity_type = 'vendor' AND entity_id = v.entity_id) as total,
-                (SELECT SUM(amount) FROM $table WHERE entity_type = 'vendor' AND entity_id = v.entity_id AND lock_type != 'none' AND (unlock_at IS NULL OR unlock_at > NOW())) as locked
-                FROM $table v 
-                WHERE entity_type = 'vendor' 
-                ORDER BY entity_id"
+            $vendors_raw = $wpdb->get_results(
+                "SELECT DISTINCT entity_id FROM $table WHERE entity_type = 'vendor' ORDER BY entity_id"
             );
             
             echo '<table class="wp-list-table widefat fixed striped">';
             echo '<thead><tr><th>Vendor ID</th><th>Total</th><th>Locked (Pending)</th><th>Available</th><th>Actions</th></tr></thead>';
             echo '<tbody>';
             
-            foreach ($vendors as $v) {
-                $available = $v->total - $v->locked;
+            foreach ($vendors_raw as $v) {
+                $vid = $v->entity_id;
+                $total = \ZeroHold\Finance\Core\QueryEngine::get_wallet_balance('vendor', $vid);
+                $locked = \ZeroHold\Finance\Core\QueryEngine::get_locked_balance('vendor', $vid);
+                $available = \ZeroHold\Finance\Core\QueryEngine::get_withdrawable_balance('vendor', $vid);
+                
                 $color = $available < 0 ? 'red' : 'green';
                 
                 echo '<tr>';
-                echo '<td><strong>' . $v->entity_id . '</strong></td>';
-                echo '<td>₹' . number_format($v->total, 2) . '</td>';
-                echo '<td>₹' . number_format($v->locked, 2) . '</td>';
+                echo '<td><strong>' . $vid . '</strong></td>';
+                echo '<td>₹' . number_format($total, 2) . '</td>';
+                echo '<td>₹' . number_format($locked, 2) . '</td>';
                 echo '<td style="color: ' . $color . '"><strong>₹' . number_format($available, 2) . '</strong></td>';
-                echo '<td><a href="?page=zh-finance-debug&vid=' . $v->entity_id . '" class="button">View Details</a></td>';
+                echo '<td><a href="?page=zh-finance-debug&vid=' . $vid . '" class="button">View Details</a></td>';
                 echo '</tr>';
             }
             
@@ -95,22 +94,10 @@ class DebugPage {
 
             echo '</tbody></table>';
 
-            // Calculate balances
-            $total = $wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(amount) FROM $table WHERE entity_type = 'vendor' AND entity_id = %d",
-                $vendor_id
-            ));
-
-            $locked = $wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(amount) FROM $table 
-                WHERE entity_type = 'vendor' 
-                AND entity_id = %d 
-                AND lock_type != 'none' 
-                AND (unlock_at IS NULL OR unlock_at > NOW())",
-                $vendor_id
-            ));
-
-            $available = $total - $locked;
+            // Use QueryEngine for consistency
+            $total = \ZeroHold\Finance\Core\QueryEngine::get_wallet_balance('vendor', $vendor_id);
+            $locked = \ZeroHold\Finance\Core\QueryEngine::get_locked_balance('vendor', $vendor_id);
+            $available = \ZeroHold\Finance\Core\QueryEngine::get_withdrawable_balance('vendor', $vendor_id);
 
             echo '<div class="notice notice-info" style="margin-top: 20px; padding: 15px;">';
             echo '<h3>Balance Summary</h3>';

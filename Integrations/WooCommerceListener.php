@@ -100,8 +100,16 @@ class WooCommerceListener {
         $result = FinanceIngress::handle_event( $payload );
 
         if ( ! is_wp_error( $result ) ) {
-            // --- ATOMIC RETROACTIVE SYNC ---
-            // Find all previously recorded charges for this order (e.g. shipping in processing)
+            // Trigger automation (e.g., Platform Commissions)
+            // This records additional charges like commissions and fees.
+            do_action( 'zh_finance_event', 'zh_event_order_completed', [
+                'order_id'    => $order_id,
+                'vendor_id'   => $vendor_id,
+                'customer_id' => $order->get_customer_id() ?: 0
+            ] );
+
+            // --- ATOMIC RETROACTIVE SYNC (Catch-All) ---
+            // Find all previously recorded charges for this order (including commissions just recorded)
             // and anchor them to the same release time as the earnings.
             $wpdb->update(
                 $table,
@@ -111,13 +119,6 @@ class WooCommerceListener {
                     'reference_id'   => $order_id
                 ]
             );
-
-            // Trigger automation (e.g., Platform Commissions)
-            do_action( 'zh_finance_event', 'zh_event_order_completed', [
-                'order_id'    => $order_id,
-                'vendor_id'   => $vendor_id,
-                'customer_id' => $order->get_customer_id() ?: 0
-            ] );
         }
     }
 

@@ -64,6 +64,7 @@ class LedgerService {
             $order_unlock = get_post_meta( $reference_id, '_zh_order_unlock_at', true );
             if ( ! empty( $order_unlock ) ) {
                 $unlock_at = $order_unlock; // Force the charge logic to use the exact same second as the earnings
+                error_log( "ZH Finance: Synchronized $impact with Order escrow time: $unlock_at" );
             }
         }
 
