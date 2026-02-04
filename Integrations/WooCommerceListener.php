@@ -11,9 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WooCommerceListener {
 
     public static function init() {
-        // High priority to ensure we capture it after other logic runs
-        add_action( 'woocommerce_payment_complete', [ __CLASS__, 'handle_order_payment' ], 10, 1 );
-        add_action( 'woocommerce_order_status_processing', [ __CLASS__, 'handle_order_payment' ], 10, 1 );
+        // Earnings are now only recorded when the order is FULLY completed
+        // This prevents phantom earnings for rejected or cancelled orders
         add_action( 'woocommerce_order_status_completed', [ __CLASS__, 'handle_order_payment' ], 10, 1 );
         
         // Refund/Return listeners
@@ -27,6 +26,12 @@ class WooCommerceListener {
             return;
         }
 
+        // --- DEFERRED EARNINGS GATE ---
+        // Earnings only show up when the order reaches 'completed'
+        if ( $order->get_status() !== 'completed' ) {
+            return;
+        }
+
         // Idempotency Check: Prevent duplicate entries
         if ( $order->get_meta( '_zh_finance_earnings_recorded' ) ) {
             return;
@@ -34,7 +39,7 @@ class WooCommerceListener {
 
         $vendor_id = dokan_get_seller_id_by_order( $order_id );
         if ( ! $vendor_id ) {
-            return; // Not a vendor order?
+            return;
         }
 
         // Double-check in ledger to prevent race conditions
@@ -56,15 +61,17 @@ class WooCommerceListener {
         $order->update_meta_data( '_zh_finance_earnings_recorded', true );
         $order->save();
 
-        // In a multi-vendor marketplace:
-        // - Vendor receives ONLY the product subtotal (their earnings)
-        // - Shipping is handled by admin/platform, NOT credited to vendor
+        // Vendor receives ONLY the product subtotal
         $vendor_earnings = $order->get_subtotal() - $order->get_total_refunded();
         
         if ( $vendor_earnings <= 0 ) {
             return;
         }
         
+        // --- 7-DAY ESCROW PROTECTION ---
+        // Money is recorded but locked for 7 days to protect against buyer returns
+        $unlock_at = date( 'Y-m-d H:i:s', strtotime( '+7 days' ) );
+
         $payload = [
             'from' => [
                 'type'   => 'outside',
@@ -80,8 +87,9 @@ class WooCommerceListener {
             'impact'         => 'earnings',
             'reference_type' => 'order',
             'reference_id'   => $order_id,
-            'lock_type'      => 'order_hold',
-            'unlock_at'      => null
+            'lock_type'      => 'order_hold', // Keeps it in "Locked" balance
+            'unlock_at'      => $unlock_at,   // Moves to "Available" after 7 days
+            'reason'         => 'Order Completed - 7 day escrow period started'
         ];
 
         $result = FinanceIngress::handle_event( $payload );
