@@ -94,6 +94,9 @@ class ZeroHold_Finance {
         if ( function_exists( 'dokan' ) ) {
             require_once ZH_FINANCE_PATH . 'Integrations/Dokan/DashboardIntegration.php';
             ZeroHold\Finance\Integrations\Dokan\DashboardIntegration::init();
+            
+            require_once ZH_FINANCE_PATH . 'Integrations/Dokan/BalanceSync.php';
+            ZeroHold\Finance\Integrations\Dokan\BalanceSync::init();
         }
     }
 
