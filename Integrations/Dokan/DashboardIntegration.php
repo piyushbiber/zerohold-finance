@@ -46,9 +46,14 @@ class DashboardIntegration {
     }
 
     public static function load_finance_template( $query_vars ) {
-        // Dokan custom template loader passes the active query vars for the current endpoint.
-        // We check for zh-finance to ensure we only load on our specific dashboard page.
-        if ( isset( $query_vars['zh-finance'] ) ) {
+        global $wp;
+        // URL Comparison Guard: Only load if the current URL matches our navigation URL
+        $current_url = home_url( $wp->request );
+        $finance_url = dokan_get_navigation_url( 'zh-finance' );
+        
+        $is_finance_route = ( trailingslashit( $current_url ) === trailingslashit( $finance_url ) ) || isset( $_GET['zh-finance'] );
+
+        if ( $is_finance_route && isset( $query_vars['zh-finance'] ) ) {
             dokan_get_template( 
                 'finance/dashboard.php', 
                 [], 
@@ -61,11 +66,13 @@ class DashboardIntegration {
     
     public static function enqueue_assets() {
         if ( dokan_is_seller_dashboard() ) {
-            global $wp_query;
-            // Check if we are on the zh-finance page using multiple reliability layers
-            $is_finance_page = isset( $wp_query->query_vars['zh-finance'] ) || isset( $_GET['zh-finance'] );
+            global $wp;
+            $current_url = home_url( $wp->request );
+            $finance_url = dokan_get_navigation_url( 'zh-finance' );
             
-            if ( $is_finance_page ) {
+            $is_finance_route = ( trailingslashit( $current_url ) === trailingslashit( $finance_url ) ) || isset( $_GET['zh-finance'] );
+            
+            if ( $is_finance_route ) {
                 wp_enqueue_style( 
                     'zerohold-finance-css', 
                     ZH_FINANCE_URL . 'assets/css/finance-dashboard.css', 
