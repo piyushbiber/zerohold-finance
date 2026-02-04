@@ -46,9 +46,8 @@ class DashboardIntegration {
     }
 
     public static function load_finance_template( $query_vars ) {
-        if ( isset( $query_vars['zh-finance'] ) ) {
-            // We use dokan_get_template because dokan_get_template_part does not accept a custom path argument.
-            // dokan_get_template( $template_name, $args, $template_path, $default_path );
+        // STRICT CHECK: Only load if this is the active endpoint
+        if ( isset( $query_vars['zh-finance'] ) && get_query_var( 'zh-finance' ) ) {
             dokan_get_template( 
                 'finance/dashboard.php', 
                 [], 
@@ -61,8 +60,8 @@ class DashboardIntegration {
     
     public static function enqueue_assets() {
         if ( dokan_is_seller_dashboard() ) {
-            // Enqueue CSS for Fintech UI - Load on all dashboard pages to be safe, or check URL param if query_var fails
-            if ( isset( $_GET['zh-finance'] ) || get_query_var( 'zh-finance' ) || true ) { // Forced for debugging, will refine later
+            // STRICT CHECK: Only load CSS on the Finance page
+            if ( get_query_var( 'zh-finance' ) ) {
                 wp_enqueue_style( 
                     'zerohold-finance-css', 
                     ZH_FINANCE_URL . 'assets/css/finance-dashboard.css', 
