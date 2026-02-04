@@ -146,6 +146,10 @@ class Database {
         $wpdb->query( "DROP TRIGGER IF EXISTS {$wpdb->prefix}zh_prevent_ledger_update" );
         $wpdb->query( "DROP TRIGGER IF EXISTS {$wpdb->prefix}zh_prevent_ledger_delete" );
 
+        if ( $wpdb->get_var( "SHOW TRIGGERS LIKE '{$wpdb->prefix}zh_prevent_ledger_update'" ) ) {
+             return; // Trigger already exists
+        }
+
         // BEFORE UPDATE Trigger
         // We allow updates ONLY to the 'unlock_at' column to support delivery-based maturity.
         // Or if @zh_finance_bypass_triggers is set to 1.

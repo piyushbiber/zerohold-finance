@@ -224,13 +224,14 @@ class WooCommerceListener {
         }
 
         // Idempotency: Prevent duplicate return shipping charges
-        if ( $order->get_meta( '_zh_finance_return_shipping_recorded' ) ) {
+        if ( get_post_meta( $order_id, '_zh_finance_return_shipping_recorded', true ) ) {
             error_log( "ZH Finance DEBUG: Return shipping already recorded for Order #$order_id" );
             return;
         }
 
-        $cost = $order->get_meta( '_zh_return_shipping_total_actual' );
-        error_log( "ZH Finance DEBUG: Order #$order_id cost meta: " . print_r($cost, true) );
+        // Use direct WP cache/DB instead of WC object cache for custom meta
+        $cost = get_post_meta( $order_id, '_zh_return_shipping_total_actual', true );
+        error_log( "ZH Finance DEBUG: Order #$order_id return cost (raw db): " . print_r($cost, true) );
         
         if ( ! $cost || $cost <= 0 ) {
             error_log( "ZH Finance DEBUG: No return shipping cost found for Order #$order_id, skipping deduction." );
