@@ -59,7 +59,32 @@ class QueryEngine {
     }
 
     /**
-     * Get Withdrawable Balance (Total - Locked).
+     * Get ONLY the positive locked amounts (Earnings/Credits).
+     * This is used for the "Available Balance" math to prevent debts
+     * from acting as credits when they are locked.
+     *
+     * @param string $entity_type
+     * @param int $entity_id
+     * @return float Always positive or 0.
+     */
+    public static function get_locked_credits( $entity_type, $entity_id ) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'zh_wallet_events';
+
+        $sql = "SELECT SUM(amount) FROM $table 
+                WHERE entity_type = %s 
+                AND entity_id = %d 
+                AND amount > 0 
+                AND lock_type != 'none' 
+                AND (unlock_at IS NULL OR unlock_at > NOW())";
+
+        $credits = $wpdb->get_var( $wpdb->prepare( $sql, $entity_type, $entity_id ) );
+
+        return $credits ? (float) $credits : 0.00;
+    }
+
+    /**
+     * Get Withdrawable Balance (Total - Locked Credits).
      *
      * @param string $entity_type
      * @param int $entity_id
@@ -67,13 +92,16 @@ class QueryEngine {
      */
     public static function get_withdrawable_balance( $entity_type, $entity_id ) {
         $total = self::get_wallet_balance( $entity_type, $entity_id );
-        $locked = self::get_locked_balance( $entity_type, $entity_id );
-
-        // Total and Locked both exclude platform charges
-        // So: Withdrawable = Unlocked Earnings
-        // This can NEVER go negative due to platform charges
         
-        return $total - $locked;
+        // ADMIN SAFETY GUARD:
+        // We only subtract POSITIVE locked amounts (Credits).
+        // Negative locked amounts (Debits like shipping/fees) should 
+        // ALWAYS reduce the available balance immediately.
+        $locked_credits = self::get_locked_credits( $entity_type, $entity_id );
+        
+        $available = $total - $locked_credits;
+
+        return $available > 0 ? (float) $available : 0.00;
     }
 
     /**
