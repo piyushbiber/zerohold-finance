@@ -18,6 +18,9 @@ class WooCommerceListener {
         // Refund/Return listeners
         add_action( 'woocommerce_order_status_refunded', [ __CLASS__, 'handle_order_refund' ], 10, 1 );
         add_action( 'woocommerce_order_status_cancelled', [ __CLASS__, 'handle_order_refund' ], 10, 1 );
+        
+        // Phase 29: Return Shipping Deduction
+        add_action( 'woocommerce_order_status_return-delivered', [ __CLASS__, 'handle_return_delivered' ], 10, 1 );
     }
 
     public static function handle_order_payment( $order_id ) {
@@ -191,6 +194,69 @@ class WooCommerceListener {
             error_log( "ZH Finance: ERROR reversing earnings for Order #$order_id: " . $result->get_error_message() );
         } else {
             error_log( "ZH Finance: Successfully reversed earnings for Order #$order_id (₹$original_amount)" );
+        }
+    }
+
+    /**
+     * Handle Return Delivered status
+     * 
+     * Deducts return shipping cost from Vendor Locked Balance
+     * 
+     * @param int $order_id
+     */
+    public static function handle_return_delivered( $order_id ) {
+        $order = wc_get_order( $order_id );
+        if ( ! $order ) {
+            return;
+        }
+
+        // Idempotency: Prevent duplicate return shipping charges
+        if ( $order->get_meta( '_zh_finance_return_shipping_recorded' ) ) {
+            return;
+        }
+
+        $cost = $order->get_meta( '_zh_return_shipping_total_actual' );
+        if ( ! $cost || $cost <= 0 ) {
+            error_log( "ZH Finance: No return shipping cost found for Order #$order_id, skipping deduction." );
+            return;
+        }
+
+        $vendor_id = dokan_get_seller_id_by_order( $order_id );
+        if ( ! $vendor_id ) {
+            error_log( "ZH Finance: Vendor not found for Order #$order_id, skipping return shipping deduction." );
+            return;
+        }
+
+        // Mark as recorded
+        $order->update_meta_data( '_zh_finance_return_shipping_recorded', true );
+        $order->save();
+
+        // Record deduction from Vendor Locked (Claim) balance
+        $payload = [
+            'from' => [
+                'type'   => 'vendor',
+                'id'     => $vendor_id,
+                'nature' => 'claim'
+            ],
+            'to' => [
+                'type'   => 'admin',
+                'id'     => 0,
+                'nature' => 'real'
+            ],
+            'amount'         => (float) $cost,
+            'impact'         => 'return_shipping',
+            'reference_type' => 'order',
+            'reference_id'   => $order_id,
+            'lock_type'      => 'order_hold', // Stay locked with order earnings
+            'reason'         => 'Return Delivered - Shipping Fee Deducted (Locked)'
+        ];
+
+        $result = FinanceIngress::handle_event( $payload );
+
+        if ( is_wp_error( $result ) ) {
+            error_log( "ZH Finance: ERROR recording return shipping deduction for Order #$order_id: " . $result->get_error_message() );
+        } else {
+            error_log( "ZH Finance: Successfully recorded return shipping deduction for Order #$order_id (₹$cost)" );
         }
     }
 }
