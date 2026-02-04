@@ -68,9 +68,10 @@ class WooCommerceListener {
             return;
         }
         
-        // --- 7-DAY ESCROW PROTECTION ---
-        // Money is recorded but locked for 7 days to protect against buyer returns
-        $unlock_at = date( 'Y-m-d H:i:s', strtotime( '+7 days' ) );
+        // --- DYNAMIC ESCROW PROTECTION ---
+        $escrow_value = get_option( 'zh_finance_escrow_value', 7 );
+        $escrow_unit  = get_option( 'zh_finance_escrow_unit', 'days' );
+        $unlock_at    = date( 'Y-m-d H:i:s', strtotime( "+$escrow_value $escrow_unit" ) );
 
         $payload = [
             'from' => [

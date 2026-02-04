@@ -28,6 +28,20 @@ class AdminUI {
         global $wpdb;
         $table_rules = $wpdb->prefix . 'zh_charge_rules';
 
+        // 5. Handle Escrow Settings
+        if ( isset( $_POST['zh_save_escrow_settings'] ) && check_admin_referer( 'zh_escrow_settings_nonce' ) ) {
+            $value = intval( $_POST['escrow_value'] );
+            $unit  = sanitize_text_field( $_POST['escrow_unit'] );
+
+            // Simple validation: 1 min to 15 days
+            if ( $value >= 1 ) {
+                update_option( 'zh_finance_escrow_value', $value );
+                update_option( 'zh_finance_escrow_unit', $unit );
+                wp_safe_redirect( add_query_arg( 'zh_msg', 'escrow_saved' ) );
+                exit;
+            }
+        }
+
         // 1. Handle Status Toggle
         if ( isset( $_GET['action'] ) && $_GET['action'] === 'toggle' && isset( $_GET['rule_id'] ) ) {
             check_admin_referer( 'zh_toggle_rule_' . $_GET['rule_id'] );
@@ -162,6 +176,16 @@ class AdminUI {
             'manage_options',
             'zh-manual-transactions',
             [ __CLASS__, 'render_manual_transactions' ]
+        );
+
+        // Submenu: Escrow Settings
+        add_submenu_page(
+            'zh-finance',
+            __( 'Escrow Settings', 'zerohold-finance' ),
+            __( 'Escrow Settings', 'zerohold-finance' ),
+            'manage_options',
+            'zh-escrow-settings',
+            [ __CLASS__, 'render_escrow_settings' ]
         );
     }
 
@@ -805,6 +829,63 @@ class AdminUI {
                     }
                 });
             </script>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the Escrow Settings Page
+     */
+    public static function render_escrow_settings() {
+        if ( isset( $_GET['zh_msg'] ) && $_GET['zh_msg'] === 'escrow_saved' ) {
+            echo '<div class="updated"><p>Escrow settings saved successfully.</p></div>';
+        }
+
+        $current_value = get_option( 'zh_finance_escrow_value', 7 );
+        $current_unit  = get_option( 'zh_finance_escrow_unit', 'days' );
+        ?>
+        <div class="wrap zh-finance-admin">
+            <style>
+                .zh-escrow-container { background: #fff; padding: 30px; border: 1px solid #ccd0d4; border-radius: 8px; max-width: 600px; margin-top: 20px; }
+                .zh-help-text { color: #646970; font-style: italic; font-size: 13px; margin-top: 10px; display: block; }
+            </style>
+
+            <h1><?php _e( 'Escrow (Lock) Settings', 'zerohold-finance' ); ?></h1>
+            <p><?php _e( 'Configure the duration for which vendor earnings remain locked after an order is completed.', 'zerohold-finance' ); ?></p>
+
+            <div class="zh-escrow-container">
+                <form method="post">
+                    <?php wp_nonce_field( 'zh_escrow_settings_nonce' ); ?>
+                    
+                    <table class="form-table">
+                        <tr>
+                            <th><label><?php _e( 'Lock Duration', 'zerohold-finance' ); ?></label></th>
+                            <td>
+                                <input type="number" name="escrow_value" value="<?php echo esc_attr($current_value); ?>" min="1" style="width: 80px;">
+                                <select name="escrow_unit">
+                                    <option value="minutes" <?php selected($current_unit, 'minutes'); ?>>Minutes</option>
+                                    <option value="hours" <?php selected($current_unit, 'hours'); ?>>Hours</option>
+                                    <option value="days" <?php selected($current_unit, 'days'); ?>>Days</option>
+                                </select>
+                                <span class="zh-help-text"><?php _e( 'Vendor funds will be moved from "Locked" to "Available" after this period.', 'zerohold-finance' ); ?></span>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <p class="submit">
+                        <input type="submit" name="zh_save_escrow_settings" class="button button-primary" value="<?php _e( 'Save Escrow Settings', 'zerohold-finance' ); ?>">
+                    </p>
+                </form>
+
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #f0f0f1;">
+                    <h3>🛡️ <?php _e( 'How it works', 'zerohold-finance' ); ?></h3>
+                    <ul style="list-style-type: disc; margin-left: 20px; color: #50575e;">
+                        <li><strong><?php _e( 'Completed Orders Only', 'zerohold-finance' ); ?></strong>: <?php _e( 'The lock starts ticking only when an order is moved to "Completed".', 'zerohold-finance' ); ?></li>
+                        <li><strong><?php _e( 'Return Safety', 'zerohold-finance' ); ?></strong>: <?php _e( 'If you refund an order while it is still locked, the money is reversed before it ever hits the vendor\'s withdrawable balance.', 'zerohold-finance' ); ?></li>
+                        <li><strong><?php _e( 'Dynamic Changes', 'zerohold-finance' ); ?></strong>: <?php _e( 'Changing this value only affects FUTURE completions. Existing locked funds will keep their original unlock date.', 'zerohold-finance' ); ?></li>
+                    </ul>
+                </div>
+            </div>
         </div>
         <?php
     }
