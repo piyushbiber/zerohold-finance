@@ -326,7 +326,7 @@ class AdminUI {
                     </div>
                     <div class="zh-sub-card" title="Buyer funds locked due to refunds or disputes.">
                         <span class="zh-stat-label">⏳ <?php _e( 'Buyer Escrow', 'zerohold-finance' ); ?></span>
-                        <div class="zh-stat-value"><?php echo wc_price($metrics['buyer_escrow']); ?></div>
+                        <div class="zh-stat-value"><?php echo wc_price($metrics['buyer_escrow'] ?? 0); ?></div>
                     </div>
                     <div></div> <!-- Spacer -->
                     <div></div> <!-- Spacer -->

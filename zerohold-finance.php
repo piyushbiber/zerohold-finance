@@ -57,7 +57,7 @@ class ZeroHold_Finance {
 
     private function init_hooks() {
         register_activation_hook( __FILE__, [ $this, 'install' ] );
-        $this->install(); // TEMP: Force migration once to ensure new columns exist
+        // $this->install(); // TEMP: Removed forced migration to stop trigger spam
         add_action( 'plugins_loaded', [ $this, 'on_plugins_loaded' ] );
     }
 

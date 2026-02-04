@@ -22,7 +22,8 @@ class FinanceIngress {
         'tax_deduction',            // TCS/TDS if needed
         'sms_fee',                   // Automated charges
         'correction_credit',
-        'correction_debit'
+        'correction_debit',
+        'return_shipping'
     ];
 
     /**
