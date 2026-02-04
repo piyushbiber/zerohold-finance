@@ -19,8 +19,18 @@ class WooCommerceListener {
         add_action( 'woocommerce_order_status_refunded', [ __CLASS__, 'handle_order_refund' ], 10, 1 );
         add_action( 'woocommerce_order_status_cancelled', [ __CLASS__, 'handle_order_refund' ], 10, 1 );
         
-        // Phase 29: Return Shipping Deduction
-        add_action( 'woocommerce_order_status_return-delivered', [ __CLASS__, 'handle_return_delivered' ], 10, 1 );
+        // Generic Status Change Listener (Safety Net)
+        add_action( 'woocommerce_order_status_changed', [ __CLASS__, 'handle_status_transition' ], 10, 3 );
+    }
+
+    public static function handle_status_transition( $order_id, $from, $to ) {
+        error_log( "ZH Finance DEBUG: Order #$order_id status changed from '$from' to '$to'" );
+        
+        // If the new status is 'return-delivered', trigger the deduction
+        if ( $to === 'return-delivered' || $to === 'wc-return-delivered' ) {
+            error_log( "ZH Finance DEBUG: Status matches return-delivered, calling handle_return_delivered" );
+            self::handle_return_delivered( $order_id );
+        }
     }
 
     public static function handle_order_payment( $order_id ) {
@@ -205,25 +215,33 @@ class WooCommerceListener {
      * @param int $order_id
      */
     public static function handle_return_delivered( $order_id ) {
+        error_log( "ZH Finance DEBUG: handle_return_delivered triggered for Order #$order_id" );
+        
         $order = wc_get_order( $order_id );
         if ( ! $order ) {
+            error_log( "ZH Finance DEBUG: Order #$order_id not found." );
             return;
         }
 
         // Idempotency: Prevent duplicate return shipping charges
         if ( $order->get_meta( '_zh_finance_return_shipping_recorded' ) ) {
+            error_log( "ZH Finance DEBUG: Return shipping already recorded for Order #$order_id" );
             return;
         }
 
         $cost = $order->get_meta( '_zh_return_shipping_total_actual' );
+        error_log( "ZH Finance DEBUG: Order #$order_id cost meta: " . print_r($cost, true) );
+        
         if ( ! $cost || $cost <= 0 ) {
-            error_log( "ZH Finance: No return shipping cost found for Order #$order_id, skipping deduction." );
+            error_log( "ZH Finance DEBUG: No return shipping cost found for Order #$order_id, skipping deduction." );
             return;
         }
 
         $vendor_id = dokan_get_seller_id_by_order( $order_id );
+        error_log( "ZH Finance DEBUG: Order #$order_id vendor ID: $vendor_id" );
+        
         if ( ! $vendor_id ) {
-            error_log( "ZH Finance: Vendor not found for Order #$order_id, skipping return shipping deduction." );
+            error_log( "ZH Finance DEBUG: Vendor not found for Order #$order_id, skipping return shipping deduction." );
             return;
         }
 
@@ -257,6 +275,10 @@ class WooCommerceListener {
             error_log( "ZH Finance: ERROR recording return shipping deduction for Order #$order_id: " . $result->get_error_message() );
         } else {
             error_log( "ZH Finance: Successfully recorded return shipping deduction for Order #$order_id (₹$cost)" );
+            
+            // 🚀 Chain Trigger: Also reverse the original product earnings
+            error_log( "ZH Finance DEBUG: Triggering earnings reversal for Order #$order_id via handle_order_refund" );
+            self::handle_order_refund( $order_id );
         }
     }
 }
