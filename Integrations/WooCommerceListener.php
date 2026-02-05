@@ -70,31 +70,18 @@ class WooCommerceListener {
             return;
         }
 
-        // Set flag BEFORE processing to prevent race condition
-        $order->update_meta_data( '_zh_finance_earnings_recorded', true );
-        $order->save();
+        // Standardize: Use local time for baseline
+        $now_local = current_time( 'mysql' );
+        $mature_at = date( 'Y-m-d H:i:s', strtotime( "$now_local +$escrow_value $escrow_unit" ) );
 
-        // Vendor receives ONLY the product subtotal
-        $vendor_earnings = $order->get_subtotal() - $order->get_total_refunded();
-        
-        if ( $vendor_earnings <= 0 ) {
-            return;
-        }
-        
-        // --- DYNAMIC ESCROW PROTECTION (THE WAITING ROOM) ---
-        $escrow_value = get_option( 'zh_finance_escrow_value', 7 );
-        $escrow_unit  = get_option( 'zh_finance_escrow_unit', 'days' );
-        $mature_at    = date( 'Y-m-d H:i:s', strtotime( "+$escrow_value $escrow_unit" ) );
-
-        // 1. Set Maturity Timestamp (Timer starts now)
+        // 1. Set Maturity Timestamp
         $order->update_meta_data( '_zh_finance_mature_at', $mature_at );
         $order->save();
 
         error_log( "ZH Finance: Deferred Earnings timer started for Order #$order_id. Matures at: $mature_at" );
 
         // 🚀 TRIGGER AUTOMATION (Commission & Fees)
-        // We trigger this NOW so fees are recorded immediately (as Debits).
-        // WE DO NOT RECORD EARNINGS YET. The Sweeper will do that when timer ends.
+        // Fees happen immediately, Earnings happen via Sweeper.
         do_action( 'zh_finance_event', 'zh_event_order_completed', [
             'order_id'    => $order_id,
             'vendor_id'   => $vendor_id,
