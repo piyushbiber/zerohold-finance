@@ -15,6 +15,11 @@ class QueryEngine {
      * @param int $entity_id
      * @return float
      */
+    public static function get_wallet_balance( $entity_type, $entity_id ) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'zh_wallet_events';
+        $posts = $wpdb->prefix . 'posts';
+
         // VISION FILTER (Idea 2):
         // 1. Unlocked items are always visible.
         // 2. Locked earnings ('order_hold') are ONLY visible if:
@@ -179,6 +184,7 @@ class QueryEngine {
     public static function get_global_metrics() {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
+        $posts = $wpdb->prefix . 'posts';
 
         $metrics = [
             'total_real'         => 0.00, // Bank Pool

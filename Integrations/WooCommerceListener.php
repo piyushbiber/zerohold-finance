@@ -74,6 +74,10 @@ class WooCommerceListener {
         $escrow_value = get_option( 'zh_finance_escrow_value', 7 );
         $escrow_unit  = get_option( 'zh_finance_escrow_unit', 'days' );
 
+        // Calculate Maturity
+        $now_local = current_time( 'mysql' );
+        $mature_at = date( 'Y-m-d H:i:s', strtotime( "$now_local +$escrow_value $escrow_unit" ) );
+
         // 🚀 RECORD EARNINGS IMMEDIATELY (BUT LOCKED)
         $payload = [
             'from' => [

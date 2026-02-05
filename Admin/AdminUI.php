@@ -32,6 +32,9 @@ class AdminUI {
         if ( isset( $_POST['zh_save_escrow_settings'] ) && check_admin_referer( 'zh_escrow_settings_nonce' ) ) {
             $value = intval( $_POST['escrow_value'] );
             $unit  = sanitize_text_field( $_POST['escrow_unit'] );
+
+            if ( $value >= 1 ) {
+                update_option( 'zh_finance_escrow_value', $value );
                 update_option( 'zh_finance_escrow_unit', $unit );
                 wp_safe_redirect( add_query_arg( 'zh_msg', 'escrow_saved' ) );
                 exit;
