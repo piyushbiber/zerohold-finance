@@ -32,17 +32,7 @@ class AdminUI {
         if ( isset( $_POST['zh_save_escrow_settings'] ) && check_admin_referer( 'zh_escrow_settings_nonce' ) ) {
             $value = intval( $_POST['escrow_value'] );
             $unit  = sanitize_text_field( $_POST['escrow_unit'] );
-            $freq  = sanitize_text_field( $_POST['gatekeeper_freq'] );
-
-            // Simple validation: 1 min to 15 days
-            if ( $value >= 1 ) {
-                update_option( 'zh_finance_escrow_value', $value );
                 update_option( 'zh_finance_escrow_unit', $unit );
-                update_option( 'zh_finance_gatekeeper_freq', $freq );
-                
-                // Clear schedule so it resets on next page load
-                wp_clear_scheduled_hook( 'zh_finance_release_earnings' );
-
                 wp_safe_redirect( add_query_arg( 'zh_msg', 'escrow_saved' ) );
                 exit;
             }
@@ -876,37 +866,12 @@ class AdminUI {
                                 <span class="zh-help-text"><?php _e( 'Vendor funds will be moved from "Locked" to "Available" after this period.', 'zerohold-finance' ); ?></span>
                             </td>
                         </tr>
-                        <tr>
-                            <th><label><?php _e( 'Gatekeeper Check', 'zerohold-finance' ); ?></label></th>
-                            <td>
-                                <?php $gatekeeper_freq = get_option( 'zh_finance_gatekeeper_freq', 'hourly' ); ?>
-                                <select name="gatekeeper_freq">
-                                    <option value="test_1min" <?php selected($gatekeeper_freq, 'test_1min'); ?>>Every Minute (Testing)</option>
-                                    <option value="5min" <?php selected($gatekeeper_freq, '5min'); ?>>Every 5 Minutes</option>
-                                    <option value="15min" <?php selected($gatekeeper_freq, '15min'); ?>>Every 15 Minutes</option>
-                                    <option value="hourly" <?php selected($gatekeeper_freq, 'hourly'); ?>>Hourly (Standard)</option>
-                                </select>
-                                <span class="zh-help-text">
-                                    <?php _e( 'How often the "Robot" wakes up to check for mature orders.', 'zerohold-finance' ); ?><br/>
-                                    <strong><?php _e( 'Why?', 'zerohold-finance' ); ?></strong>: <?php _e( 'Checking every minute is fast for testing but uses more server power. Hourly is best for live sites.', 'zerohold-finance' ); ?>
-                                </span>
-                            </td>
-                        </tr>
                     </table>
 
                     <p class="submit">
                         <input type="submit" name="zh_save_escrow_settings" class="button button-primary" value="<?php _e( 'Save Escrow Settings', 'zerohold-finance' ); ?>">
                     </p>
                 </form>
-
-                <div style="margin-top: 30px; padding: 20px; border: 1px dashed #72aee6; background: #f0f6fb; border-radius: 6px;">
-                    <h3 style="margin-top: 0;">🛠️ <?php _e( 'Manual Testing Tool', 'zerohold-finance' ); ?></h3>
-                    <p><?php _e( 'Use this to bypass the cron and force the Gatekeeper to check for mature orders right now.', 'zerohold-finance' ); ?></p>
-                    <form action="<?php echo admin_url( 'admin-post.php' ); ?>" method="post">
-                        <input type="hidden" name="action" value="zh_run_sweeper">
-                        <input type="submit" class="button button-secondary" value="<?php _e( 'Force Run Gatekeeper Now', 'zerohold-finance' ); ?>">
-                    </form>
-                </div>
 
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #f0f0f1;">
                     <h3>🛡️ <?php _e( 'How it works', 'zerohold-finance' ); ?></h3>

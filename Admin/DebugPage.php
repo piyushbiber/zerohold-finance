@@ -74,11 +74,21 @@ class DebugPage {
             ));
 
             echo '<table class="wp-list-table widefat fixed striped">';
-            echo '<thead><tr><th>ID</th><th>Amount</th><th>Impact</th><th>Lock Type</th><th>Unlock At</th><th>Reference</th><th>Created</th></tr></thead>';
+            echo '<thead><tr><th>ID</th><th>Amount</th><th>Impact</th><th>Lock Type</th><th>Unlock At</th><th>Ref / Status</th><th>Created</th></tr></thead>';
             echo '<tbody>';
 
             foreach ($entries as $entry) {
-                $is_locked = ($entry->lock_type != 'none' && (is_null($entry->unlock_at) || strtotime($entry->unlock_at) > time()));
+                // VISION FILTER LOGIC FOR DEBUG:
+                $order_status = '';
+                $is_safe = true;
+                if ($entry->reference_type === 'order') {
+                    $order_status = $wpdb->get_var($wpdb->prepare("SELECT post_status FROM {$wpdb->prefix}posts WHERE ID = %d", $entry->reference_id));
+                    $is_safe = !in_array($order_status, ['wc-return-requested', 'wc-return-approved', 'wc-return-delivered', 'wc-refunded', 'wc-cancelled', 'return-requested', 'return-approved', 'return-delivered']);
+                }
+
+                $time_passed = ($entry->unlock_at && strtotime($entry->unlock_at) <= time());
+                $is_locked = ($entry->lock_type === 'order_hold' && (!$time_passed || !$is_safe));
+                
                 $row_style = $is_locked ? 'background: #fff3cd;' : '';
                 
                 echo '<tr style="' . $row_style . '">';
@@ -87,7 +97,7 @@ class DebugPage {
                 echo '<td><code>' . $entry->impact . '</code></td>';
                 echo '<td><strong>' . $entry->lock_type . '</strong></td>';
                 echo '<td>' . ($entry->unlock_at ?: 'NULL') . '</td>';
-                echo '<td>' . $entry->reference_type . ' #' . $entry->reference_id . '</td>';
+                echo '<td>' . $entry->reference_type . ' #' . $entry->reference_id . ' <br><small>(' . ($order_status ?: 'N/A') . ')</small></td>';
                 echo '<td>' . $entry->created_at . '</td>';
                 echo '</tr>';
             }

@@ -74,23 +74,42 @@ class WooCommerceListener {
         $escrow_value = get_option( 'zh_finance_escrow_value', 7 );
         $escrow_unit  = get_option( 'zh_finance_escrow_unit', 'days' );
 
-        // Standardize: Use local time for baseline
-        $now_local = current_time( 'mysql' );
-        $mature_at = date( 'Y-m-d H:i:s', strtotime( "$now_local +$escrow_value $escrow_unit" ) );
+        // 🚀 RECORD EARNINGS IMMEDIATELY (BUT LOCKED)
+        $payload = [
+            'from' => [
+                'type'   => 'outside',
+                'id'     => 0,
+                'nature' => 'real'
+            ],
+            'to' => [
+                'type'   => 'vendor',
+                'id'     => $vendor_id,
+                'nature' => 'claim'
+            ],
+            'amount'         => (float) $vendor_earnings,
+            'impact'         => 'earnings',
+            'reference_type' => 'order',
+            'reference_id'   => $order_id,
+            'lock_type'      => 'order_hold', // Managed by Vision Filter in QueryEngine
+            'unlock_at'      => $mature_at,
+            'reason'         => 'Order Completed - Escrow Started'
+        ];
 
-        // 1. Set Maturity Timestamp
-        $order->update_meta_data( '_zh_finance_mature_at', $mature_at );
-        $order->save();
+        $result = FinanceIngress::handle_event( $payload );
 
-        error_log( "ZH Finance: Deferred Earnings timer started for Order #$order_id. Matures at: $mature_at" );
+        if ( ! is_wp_error( $result ) ) {
+            // Standardize flag
+            $order->update_meta_data( '_zh_finance_earnings_recorded', true );
+            $order->save();
 
-        // 🚀 TRIGGER AUTOMATION (Commission & Fees)
-        // Fees happen immediately, Earnings happen via Sweeper.
-        do_action( 'zh_finance_event', 'zh_event_order_completed', [
-            'order_id'    => $order_id,
-            'vendor_id'   => $vendor_id,
-            'customer_id' => $order->get_customer_id() ?: 0
-        ] );
+            // 🚀 TRIGGER AUTOMATION (Commission & Fees)
+            // Fees happen immediately (lock_type = NULL in CommissionListener)
+            do_action( 'zh_finance_event', 'zh_event_order_completed', [
+                'order_id'    => $order_id,
+                'vendor_id'   => $vendor_id,
+                'customer_id' => $order->get_customer_id() ?: 0
+            ] );
+        }
     }
 
     /**

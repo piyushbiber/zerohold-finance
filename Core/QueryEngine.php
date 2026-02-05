@@ -15,18 +15,22 @@ class QueryEngine {
      * @param int $entity_id
      * @return float
      */
-    public static function get_wallet_balance( $entity_type, $entity_id ) {
-        global $wpdb;
-        $table = $wpdb->prefix . 'zh_wallet_events';
+        // VISION FILTER (Idea 2):
+        // 1. Unlocked items are always visible.
+        // 2. Locked earnings ('order_hold') are ONLY visible if:
+        //    - Time has passed (unlock_at <= NOW)
+        //    - AND Order status is NOT in a "Blocked" state (Return/Refund/Cancel)
+        $sql = "SELECT SUM(amount) FROM $table 
+                WHERE entity_type = %s AND entity_id = %d
+                AND (
+                    lock_type != 'order_hold'
+                    OR (
+                        unlock_at <= NOW()
+                        AND (SELECT post_status FROM $posts WHERE ID = reference_id) NOT IN ('wc-return-requested', 'wc-return-approved', 'wc-return-delivered', 'wc-refunded', 'wc-cancelled', 'return-requested', 'return-approved', 'return-delivered')
+                    )
+                )";
 
-        // Wallet balance = SUM of ALL amounts
-        // This includes earnings AND deductions (shipping, commission, etc.)
-        // Because Pending/Available represent NET earnings (what vendor will receive)
-        $balance = $wpdb->get_var( $wpdb->prepare(
-            "SELECT SUM(amount) FROM $table WHERE entity_type = %s AND entity_id = %d",
-            $entity_type,
-            $entity_id
-        ) );
+        $balance = $wpdb->get_var( $wpdb->prepare( $sql, $entity_type, $entity_id ) );
 
         return $balance ? (float) $balance : 0.00;
     }
@@ -43,15 +47,17 @@ class QueryEngine {
     public static function get_locked_balance( $entity_type, $entity_id ) {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
+        $posts = $wpdb->prefix . 'posts';
 
-        // Locked balance = SUM of ALL locked amounts
-        // This includes locked earnings AND locked deductions (shipping with order_hold)
-        // Because Pending Balance represents NET locked earnings
+        // Locked items are those that ARE recorded but not yet "passed the filter"
         $sql = "SELECT SUM(amount) FROM $table 
                 WHERE entity_type = %s 
                 AND entity_id = %d 
-                AND lock_type != 'none' 
-                AND (unlock_at IS NULL OR unlock_at > NOW())";
+                AND lock_type = 'order_hold'
+                AND (
+                    unlock_at > NOW() 
+                    OR (SELECT post_status FROM $posts WHERE ID = reference_id) IN ('wc-return-requested', 'wc-return-approved', 'wc-return-delivered', 'wc-refunded', 'wc-cancelled', 'return-requested', 'return-approved', 'return-delivered')
+                )";
 
         $locked = $wpdb->get_var( $wpdb->prepare( $sql, $entity_type, $entity_id ) );
 
@@ -70,13 +76,17 @@ class QueryEngine {
     public static function get_locked_credits( $entity_type, $entity_id ) {
         global $wpdb;
         $table = $wpdb->prefix . 'zh_wallet_events';
+        $posts = $wpdb->prefix . 'posts';
 
         $sql = "SELECT SUM(amount) FROM $table 
                 WHERE entity_type = %s 
                 AND entity_id = %d 
                 AND amount > 0 
-                AND lock_type != 'none' 
-                AND (unlock_at IS NULL OR unlock_at > NOW())";
+                AND lock_type = 'order_hold'
+                AND (
+                    unlock_at > NOW() 
+                    OR (SELECT post_status FROM $posts WHERE ID = reference_id) IN ('wc-return-requested', 'wc-return-approved', 'wc-return-delivered', 'wc-refunded', 'wc-cancelled', 'return-requested', 'return-approved', 'return-delivered')
+                )";
 
         $credits = $wpdb->get_var( $wpdb->prepare( $sql, $entity_type, $entity_id ) );
 
@@ -207,8 +217,11 @@ class QueryEngine {
         $metrics['vendor_escrow'] = abs( (float) $wpdb->get_var(
             "SELECT SUM(amount) FROM $table 
              WHERE entity_type = 'vendor' 
-             AND lock_type != 'none' 
-             AND (unlock_at IS NULL OR unlock_at > NOW())"
+             AND lock_type = 'order_hold' 
+             AND (
+                 unlock_at > NOW() 
+                 OR (SELECT post_status FROM $posts WHERE ID = reference_id) IN ('wc-return-requested', 'wc-return-approved', 'wc-return-delivered', 'wc-refunded', 'wc-cancelled', 'return-requested', 'return-approved', 'return-delivered')
+             )"
         ) );
 
         // --- CALCULATION REFINEMENT (Buyer-less Ledger) ---

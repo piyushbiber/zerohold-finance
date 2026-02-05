@@ -67,7 +67,7 @@ class ZSSListener {
                 'impact' => 'shipping_charge',
                 'reference_type' => 'order',
                 'reference_id' => $data['order_id'],
-                'lock_type' => 'order_hold' // LOCKED - reduces Pending Balance
+                'lock_type' => 'none' // IMMEDIATE - Reduces Available Balance right away
             ]);
             
             if ( is_wp_error( $result ) ) {

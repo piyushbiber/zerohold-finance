@@ -32,14 +32,31 @@ if ( $active_tab === 'overview' ) {
     $offset = ( $page - 1 ) * $limit;
 
     $events = $wpdb->get_results( $wpdb->prepare(
-        "SELECT * FROM $table WHERE entity_type = 'vendor' AND entity_id = %d ORDER BY created_at DESC LIMIT %d, %d",
+        "SELECT * FROM $table 
+         WHERE entity_type = 'vendor' AND entity_id = %d 
+         AND (
+             lock_type != 'order_hold'
+             OR (
+                 unlock_at <= NOW()
+                 AND (SELECT post_status FROM {$wpdb->prefix}posts WHERE ID = reference_id) NOT IN ('wc-return-requested', 'wc-return-approved', 'wc-return-delivered', 'wc-refunded', 'wc-cancelled', 'return-requested', 'return-approved', 'return-delivered')
+             )
+         )
+         ORDER BY created_at DESC LIMIT %d, %d",
         $vendor_id, 
         $offset, 
         $limit
     ) );
     
     $total_rows = $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM $table WHERE entity_type = 'vendor' AND entity_id = %d",
+        "SELECT COUNT(*) FROM $table 
+         WHERE entity_type = 'vendor' AND entity_id = %d
+         AND (
+             lock_type != 'order_hold'
+             OR (
+                 unlock_at <= NOW()
+                 AND (SELECT post_status FROM {$wpdb->prefix}posts WHERE ID = reference_id) NOT IN ('wc-return-requested', 'wc-return-approved', 'wc-return-delivered', 'wc-refunded', 'wc-cancelled', 'return-requested', 'return-approved', 'return-delivered')
+             )
+         )",
         $vendor_id
     ) );
 }
