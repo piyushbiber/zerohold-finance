@@ -32,11 +32,17 @@ class AdminUI {
         if ( isset( $_POST['zh_save_escrow_settings'] ) && check_admin_referer( 'zh_escrow_settings_nonce' ) ) {
             $value = intval( $_POST['escrow_value'] );
             $unit  = sanitize_text_field( $_POST['escrow_unit'] );
+            $freq  = sanitize_text_field( $_POST['gatekeeper_freq'] );
 
             // Simple validation: 1 min to 15 days
             if ( $value >= 1 ) {
                 update_option( 'zh_finance_escrow_value', $value );
                 update_option( 'zh_finance_escrow_unit', $unit );
+                update_option( 'zh_finance_gatekeeper_freq', $freq );
+                
+                // Clear schedule so it resets on next page load
+                wp_clear_scheduled_hook( 'zh_finance_release_earnings' );
+
                 wp_safe_redirect( add_query_arg( 'zh_msg', 'escrow_saved' ) );
                 exit;
             }
