@@ -78,6 +78,9 @@ class ZeroHold_Finance {
 
         require_once ZH_FINANCE_PATH . 'Core/LockManager.php';
         ZeroHold\Finance\Core\LockManager::init();
+
+        require_once ZH_FINANCE_PATH . 'Core/EarningsSweeper.php';
+        ZeroHold\Finance\Core\EarningsSweeper::init();
         
         require_once ZH_FINANCE_PATH . 'Admin/AdminUI.php';
         ZeroHold\Finance\Admin\AdminUI::init();

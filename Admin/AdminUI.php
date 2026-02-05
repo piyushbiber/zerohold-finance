@@ -875,7 +875,6 @@ class AdminUI {
                                 </select>
                                 <span class="zh-help-text"><?php _e( 'Vendor funds will be moved from "Locked" to "Available" after this period.', 'zerohold-finance' ); ?></span>
                             </td>
-                            </td>
                         </tr>
                         <tr>
                             <th><label><?php _e( 'Gatekeeper Check', 'zerohold-finance' ); ?></label></th>
@@ -899,6 +898,15 @@ class AdminUI {
                         <input type="submit" name="zh_save_escrow_settings" class="button button-primary" value="<?php _e( 'Save Escrow Settings', 'zerohold-finance' ); ?>">
                     </p>
                 </form>
+
+                <div style="margin-top: 30px; padding: 20px; border: 1px dashed #72aee6; background: #f0f6fb; border-radius: 6px;">
+                    <h3 style="margin-top: 0;">🛠️ <?php _e( 'Manual Testing Tool', 'zerohold-finance' ); ?></h3>
+                    <p><?php _e( 'Use this to bypass the cron and force the Gatekeeper to check for mature orders right now.', 'zerohold-finance' ); ?></p>
+                    <form action="<?php echo admin_url( 'admin-post.php' ); ?>" method="post">
+                        <input type="hidden" name="action" value="zh_run_sweeper">
+                        <input type="submit" class="button button-secondary" value="<?php _e( 'Force Run Gatekeeper Now', 'zerohold-finance' ); ?>">
+                    </form>
+                </div>
 
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #f0f0f1;">
                     <h3>🛡️ <?php _e( 'How it works', 'zerohold-finance' ); ?></h3>

@@ -70,6 +70,10 @@ class WooCommerceListener {
             return;
         }
 
+        // Fetch Escrow Settings
+        $escrow_value = get_option( 'zh_finance_escrow_value', 7 );
+        $escrow_unit  = get_option( 'zh_finance_escrow_unit', 'days' );
+
         // Standardize: Use local time for baseline
         $now_local = current_time( 'mysql' );
         $mature_at = date( 'Y-m-d H:i:s', strtotime( "$now_local +$escrow_value $escrow_unit" ) );
