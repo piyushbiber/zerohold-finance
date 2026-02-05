@@ -875,6 +875,23 @@ class AdminUI {
                                 </select>
                                 <span class="zh-help-text"><?php _e( 'Vendor funds will be moved from "Locked" to "Available" after this period.', 'zerohold-finance' ); ?></span>
                             </td>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label><?php _e( 'Gatekeeper Check', 'zerohold-finance' ); ?></label></th>
+                            <td>
+                                <?php $gatekeeper_freq = get_option( 'zh_finance_gatekeeper_freq', 'hourly' ); ?>
+                                <select name="gatekeeper_freq">
+                                    <option value="test_1min" <?php selected($gatekeeper_freq, 'test_1min'); ?>>Every Minute (Testing)</option>
+                                    <option value="5min" <?php selected($gatekeeper_freq, '5min'); ?>>Every 5 Minutes</option>
+                                    <option value="15min" <?php selected($gatekeeper_freq, '15min'); ?>>Every 15 Minutes</option>
+                                    <option value="hourly" <?php selected($gatekeeper_freq, 'hourly'); ?>>Hourly (Standard)</option>
+                                </select>
+                                <span class="zh-help-text">
+                                    <?php _e( 'How often the "Robot" wakes up to check for mature orders.', 'zerohold-finance' ); ?><br/>
+                                    <strong><?php _e( 'Why?', 'zerohold-finance' ); ?></strong>: <?php _e( 'Checking every minute is fast for testing but uses more server power. Hourly is best for live sites.', 'zerohold-finance' ); ?>
+                                </span>
+                            </td>
                         </tr>
                     </table>
 
